@@ -169,7 +169,7 @@ class BleLink(
     private fun handleNotify(uuid: UUID, v: ByteArray?) {
         if (v == null) return
         when (uuid) {
-            AUDIO_UUID -> if (v.size > 2) onAudio(u16(v, 0), v.copyOfRange(2, v.size))
+            AUDIO_UUID -> if (v.size >= 2) onAudio(u16(v, 0), v.copyOfRange(2, v.size))   // 只有 2 字节 = 安静声明
             BATT_UUID -> if (v.size >= 2) onBattery(u16(v, 0))
         }
     }

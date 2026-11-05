@@ -21,6 +21,7 @@
 #define FALL_DB_PER_FR  (3.0f)                       /* 降增益很快 */
 #define SPEECH_OVER_NF_DB 12.0f
 #define PEAK_LIMIT      (0.89f * 32767.0f)          /* -1dBFS */
+#define GATE_DB         8.0f       /* 比噪声底高这么多就当作"有声音"，比 AGC 的说话判断更宽松，宁可多发 */
 
 static float b0, b1, b2, a1, a2;     /* 高通系数 */
 static float hx1, hx2, hy1, hy2;     /* 高通状态 */
@@ -29,6 +30,7 @@ static float gain_lin_prev;
 static float noise_db = -60.0f;
 static uint32_t limited;
 static float buf[FRAME_SAMPLES];
+static bool voice;
 
 void agc_init(void)
 {
@@ -77,6 +79,8 @@ void agc_process(int16_t *pcm, int n)
 		noise_db += 1.0f * FRAME_MS / 1000.0f;
 	}
 
+	voice = rms_db > noise_db + GATE_DB && rms_db > -80.0f;
+
 	/* 3. 只在说话帧上调整增益 */
 	if (rms_db > noise_db + SPEECH_OVER_NF_DB && rms_db > -75.0f) {
 		float want = CLAMP(TARGET_DBFS - rms_db, GAIN_MIN_DB, GAIN_MAX_DB);
@@ -106,6 +110,7 @@ void agc_process(int16_t *pcm, int n)
 	gain_lin_prev = g;
 }
 
+bool agc_voice(void) { return voice; }
 float agc_gain_db(void) { return gain_db; }
 float agc_noise_db(void) { return noise_db; }
 uint32_t agc_limited_frames(void) { return limited; }

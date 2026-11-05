@@ -258,6 +258,9 @@ class MainActivity : ComponentActivity() {
                 InfoRow("数据", "%.1f KB/s".format(s.bytesPerSec / 1000.0))
                 val lossPct = if (s.totalPackets > 0) s.lostPackets * 100.0 / (s.totalPackets + s.lostPackets) else 0.0
                 InfoRow("丢包", "%.2f%%".format(lossPct))
+                val all = s.totalPackets + s.lostPackets + s.silentFrames
+                if (s.silentFrames > 0 && all > 0)
+                    InfoRow("安静省略", "%.0f%%（这些时间设备没有发送，省电）".format(s.silentFrames * 100.0 / all))
                 s.currentChunk?.let { name ->
                     val start = Recordings.parseStart(java.io.File(name))
                     InfoRow("当前片段", "${start?.format(T) ?: ""} 起，已录 ${fmtDuration(s.currentChunkSeconds)}")

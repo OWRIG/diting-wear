@@ -18,6 +18,7 @@ data class Status(
     val batteryMv: Int? = null,
     val totalPackets: Long = 0,
     val lostPackets: Long = 0,
+    val silentFrames: Long = 0,
     val bytesPerSec: Int = 0,
     val currentChunk: String? = null,
     val currentChunkSeconds: Double = 0.0,

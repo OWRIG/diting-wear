@@ -209,12 +209,10 @@ object Places {
     fun requestFix(ctx: Context) {
         if (!hasPermission(ctx)) return
         val lm = ctx.getSystemService(LocationManager::class.java) ?: return
+        // 只用网络定位（基站 + Wi-Fi），不开 GPS：几乎不耗电，误差几十到一两百米，分辨小区、公司够用
         val provider = when {
-            Build.VERSION.SDK_INT >= 31 && lm.hasProvider(LocationManager.FUSED_PROVIDER) &&
-                lm.isProviderEnabled(LocationManager.FUSED_PROVIDER) -> LocationManager.FUSED_PROVIDER
             lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
-            lm.isProviderEnabled(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
-            else -> { Log.i(TAG, "定位已关闭"); return }
+            else -> { Log.i(TAG, "网络定位不可用"); return }
         }
         runCatching {
             if (Build.VERSION.SDK_INT >= 30) {

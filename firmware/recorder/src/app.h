@@ -13,7 +13,9 @@
 /* ble.c */
 int ble_init(void);
 bool ble_streaming(void);              /* 已连接且手机订阅了音频 */
-int ble_send_audio(const uint8_t *data, size_t len);
+/* 发一帧音频，seq 是帧序号（每 20ms 加一，安静没发的帧也算）。
+ * len == 0 表示"安静声明"：seq 以及之前没收到的帧都是安静，手机用静音补上 */
+int ble_send_audio(uint16_t seq, const uint8_t *data, size_t len);
 
 /* ble.c 电池 */
 int ble_send_battery(uint16_t mv);

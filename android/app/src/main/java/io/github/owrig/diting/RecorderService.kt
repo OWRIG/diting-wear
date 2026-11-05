@@ -57,7 +57,7 @@ class RecorderService : Service() {
             val bps = bytesThisSecond
             bytesThisSecond = 0
             AppState.update {
-                it.copy(totalPackets = chunks.totalPackets, lostPackets = chunks.lostPackets,
+                it.copy(totalPackets = chunks.totalPackets, lostPackets = chunks.lostPackets, silentFrames = chunks.silentFrames,
                     bytesPerSec = bps, currentChunk = chunks.currentFileName,
                     currentChunkSeconds = chunks.currentSeconds)
             }

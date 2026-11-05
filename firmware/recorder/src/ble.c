@@ -137,9 +137,8 @@ bool ble_streaming(void)
 	return cur_conn && subscribed;
 }
 
-int ble_send_audio(const uint8_t *data, size_t len)
+int ble_send_audio(uint16_t seq, const uint8_t *data, size_t len)
 {
-	static uint16_t seq;
 	uint8_t pkt[2 + OPUS_MAX_BYTES];
 
 	if (!ble_streaming() || len > OPUS_MAX_BYTES) {
@@ -150,9 +149,19 @@ int ble_send_audio(const uint8_t *data, size_t len)
 	}
 	pkt[0] = seq & 0xff;
 	pkt[1] = seq >> 8;
-	memcpy(&pkt[2], data, len);
-	seq++;
-	return bt_gatt_notify(cur_conn, &rig_svc.attrs[1], pkt, len + 2);
+	if (len) {
+		memcpy(&pkt[2], data, len);
+	}
+	/* 一开口时会连发十几帧（提前缓存的部分），发送缓冲可能暂时满，稍等重试 */
+	int err;
+	for (int i = 0; i < 20; i++) {
+		err = bt_gatt_notify(cur_conn, &rig_svc.attrs[1], pkt, len + 2);
+		if (err != -ENOMEM && err != -ENOBUFS) {
+			break;
+		}
+		k_msleep(5);
+	}
+	return err;
 }
 
 int ble_send_battery(uint16_t mv)

@@ -18,6 +18,9 @@ class ChunkRecorder(private val dir: File) {
         private set
     var totalPackets = 0L
         private set
+    /** 设备安静时没有发送、由手机补静音的帧数 */
+    var silentFrames = 0L
+        private set
 
     init {
         dir.mkdirs()
@@ -28,23 +31,37 @@ class ChunkRecorder(private val dir: File) {
     val currentFileName: String? get() = partFile?.name?.removeSuffix(".part")
     val currentSeconds: Double get() = writer?.durationSeconds ?: 0.0
 
+    /** 当前这段文件里有几个真正的音频包（不算补的静音） */
+    private var realInChunk = 0
+
+    /**
+     * 收到一个包。opus 为空表示设备的"安静声明"：seq 以及之前没收到的帧都是安静，用静音补齐。
+     * 有内容的包前面如果缺帧，就是真的丢包（设备会把安静的帧都声明掉），同样用静音补齐但计入丢包。
+     */
     @Synchronized
     fun onPacket(seq: Int, opus: ByteArray) {
+        val silence = opus.isEmpty()
+        var fill = 0
         if (lastSeq >= 0) {
             val gap = (seq - lastSeq - 1) and 0xFFFF
-            if (gap in 1..MAX_FILL_GAP) {
-                ensureWriter()
-                repeat(gap) { writer!!.writePacket(OggOpusWriter.SILENT_PACKET) }
-                lostPackets += gap
-            } else if (gap > MAX_FILL_GAP) {
-                // 断得太久（或者设备重启了），另起一段
-                closeChunk()
-            }
+            if (gap > 0xFF00) return                 // 序号比已收到的还旧（重复声明），忽略
+            if (gap in 1..MAX_FILL_GAP) fill = gap
+            else if (gap > MAX_FILL_GAP) closeChunk()   // 断得太久（或者设备重启了），另起一段
         }
         lastSeq = seq
-        totalPackets++
+        if (silence) fill += 1                        // 声明的这一帧本身也是安静
+        repeat(fill) { write(OggOpusWriter.SILENT_PACKET) }
+        if (silence) silentFrames += fill else lostPackets += fill
+        if (!silence) {
+            totalPackets++
+            realInChunk++
+            write(opus)
+        }
+    }
+
+    private fun write(pkt: ByteArray) {
         ensureWriter()
-        writer!!.writePacket(opus)
+        writer!!.writePacket(pkt)
         if (writer!!.packetCount >= CHUNK_PACKETS) closeChunk()
     }
 
@@ -52,7 +69,9 @@ class ChunkRecorder(private val dir: File) {
     @Synchronized
     fun closeChunk() {
         writer?.close()
-        partFile?.let { finalize(it) }
+        // 整段都是安静（设备一个音频包都没发）：没什么可听的，直接删掉
+        partFile?.let { if (writer != null && realInChunk == 0) it.delete() else finalize(it) }
+        realInChunk = 0
         writer = null
         partFile = null
     }
@@ -77,6 +96,6 @@ class ChunkRecorder(private val dir: File) {
 
     companion object {
         const val CHUNK_PACKETS = 5 * 60 * 50       // 5 分钟 × 每秒 50 帧
-        const val MAX_FILL_GAP = 50                 // 1 秒以内的丢包用 PLC 补
+        const val MAX_FILL_GAP = 500                // 10 秒以内的空缺用静音补（设备安静时每秒声明一次）
     }
 }

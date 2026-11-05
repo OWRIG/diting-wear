@@ -43,6 +43,12 @@ class Player {
         stopAtMs = endMs
     }
 
+    fun pause() {
+        stopAtMs = null
+        mp?.let { if (it.isPlaying) { it.pause(); positionMs = it.currentPosition } }
+        playing = false
+    }
+
     fun toggle() {
         stopAtMs = null
         val p = mp ?: return

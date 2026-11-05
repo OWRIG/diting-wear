@@ -86,6 +86,12 @@ class MainActivity : ComponentActivity() {
         setContent { DitingTheme { Screen() } }
     }
 
+    // 锁屏或者切到别的 App 就暂停播放（录音不受影响，录音在后台服务里）
+    override fun onStop() {
+        player.pause()
+        super.onStop()
+    }
+
     override fun onDestroy() {
         player.close()
         super.onDestroy()

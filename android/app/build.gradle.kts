@@ -20,8 +20,8 @@ android {
         applicationId = "io.github.owrig.diting"
         minSdk = 29
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.5.1"
+        versionCode = 7
+        versionName = "0.6.0"
         buildConfigField("String", "DEFAULT_SERVER_URL", "\"${secrets.getProperty("SERVER_URL", "")}\"")
         buildConfigField("String", "DEFAULT_PHONE_TOKEN", "\"${secrets.getProperty("PHONE_TOKEN", "")}\"")
     }

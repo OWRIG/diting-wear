@@ -36,6 +36,8 @@ class MainActivity : ComponentActivity() {
 
     private val player = Player()
     private var speakerVersion by mutableIntStateOf(0)   // 名单变了就让界面刷新
+    private var editing by mutableStateOf<Speaker?>(null)    // 正在改名字的人
+    private var merging by mutableStateOf<Speaker?>(null)    // 正在合并的人
     private val uploader by lazy { Uploader(this) }
 
     private val permLauncher =
@@ -111,7 +113,7 @@ class MainActivity : ComponentActivity() {
                     Spacer(Modifier.width(12.dp))
                     // 一行简要状态，点开看详情
                     val dot = if (s.link == LinkState.STREAMING) "●" else "○"
-                    val batt = s.batteryMv?.let { " · %.2fV".format(it / 1000.0) } ?: ""
+                    val batt = s.batteryMv?.let { " · 电量 ${batteryPct(it)}%" } ?: ""
                     Text("$dot ${s.link.label}$batt", Modifier.weight(1f).clickable { showStatus = !showStatus },
                         color = if (s.link == LinkState.STREAMING) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.outline,
@@ -144,6 +146,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        PersonDialogs(recs)
     }
 
     /**
@@ -180,6 +183,10 @@ class MainActivity : ComponentActivity() {
         val pos = player.positionMs / 1000.0
 
         LazyColumn(Modifier.fillMaxWidth()) {
+            if (lines.isNotEmpty()) item {
+                Text("点 ▶ 或任意一句话可以听原声；点人名可以改名字",
+                    Modifier.padding(top = 8.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+            }
             if (lines.isEmpty()) item {
                 Text("还没有转写出来的文字。录音上传后，家里的 Mac 转写完会自动出现在这里。",
                     Modifier.padding(vertical = 24.dp), color = MaterialTheme.colorScheme.outline)
@@ -198,10 +205,19 @@ class MainActivity : ComponentActivity() {
                     val longBreak = prev != null &&
                         java.time.Duration.between(prev.lines.last().endAt, first.at).seconds > 120
                     Row(Modifier.fillMaxWidth().padding(top = if (longBreak) 14.dp else 6.dp, bottom = 2.dp)) {
-                        Text(first.at.format(T), Modifier.width(68.dp).padding(top = 3.dp),
-                            color = MaterialTheme.colorScheme.outline, fontSize = 12.sp)
+                        // 时间前面的 ▶：点一下从这段开始播
+                        Text((if (first.rec.hasAudio) "▶ " else "") + first.at.format(T),
+                            Modifier.width(76.dp).padding(top = 3.dp).clickable(enabled = first.rec.hasAudio) {
+                                if (player.current?.name != first.rec.name) player.open(first.rec)
+                                player.seekTo((first.seg.start * 1000).toInt())
+                            },
+                            color = if (first.rec.hasAudio) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                            fontSize = 12.sp)
                         Column(Modifier.weight(1f)) {
-                            if (showWho) Text(p.who!!, fontSize = 12.sp, color = MaterialTheme.colorScheme.tertiary,
+                            // 点名字可以直接改名、或者说明"其实是别人"
+                            if (showWho) Text(p.who!! + " ›", Modifier.clickable {
+                                    editing = Speakers.resolve(this@MainActivity, first.seg.speaker) },
+                                fontSize = 12.sp, color = MaterialTheme.colorScheme.tertiary,
                                 fontWeight = FontWeight.Medium)
                             // 段落里的每一句拼成一段文字，正在播放的那句高亮；点哪句从哪句播
                             val text = androidx.compose.ui.text.buildAnnotatedString {
@@ -242,8 +258,8 @@ class MainActivity : ComponentActivity() {
                 Text(s.link.label, style = MaterialTheme.typography.titleMedium)
                 s.message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 Spacer(Modifier.height(6.dp))
-                val batt = s.batteryMv?.let { "%.2f V".format(it / 1000.0) } ?: "—"
-                Text("电池 $batt  ·  %.1f KB/s".format(s.bytesPerSec / 1000.0),
+                val batt = s.batteryMv?.let { "${batteryPct(it)}%%（%.2fV，按电压估算）".format(it / 1000.0) } ?: "—"
+                Text("电池 $batt  ·  " + "%.1f KB/s".format(s.bytesPerSec / 1000.0),
                     style = MaterialTheme.typography.bodyMedium)
                 val lossPct = if (s.totalPackets > 0)
                     s.lostPackets * 100.0 / (s.totalPackets + s.lostPackets) else 0.0
@@ -399,44 +415,70 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** 人物页：所有认出来的人，可以起名字、合并 */
+    /** 每个人（合并后）说了几句，以及他说得最长的一句（手机上还有录音的），用来"听一下" */
+    private class PersonStats(val count: Int, val clip: Pair<Recording, Segment>?, val sample: String?)
+
+    private fun personStats(recs: List<Recording>): Map<String, PersonStats> {
+        val count = HashMap<String, Int>()
+        val clip = HashMap<String, Pair<Recording, Segment>>()
+        val sample = HashMap<String, String>()
+        recs.forEach { r -> Transcripts.get(this, r.name)?.segments?.forEach { seg ->
+            val who = Speakers.resolve(this, seg.speaker)?.id ?: return@forEach
+            if (seg.text.isBlank()) return@forEach
+            count[who] = (count[who] ?: 0) + 1
+            if ((sample[who]?.length ?: 0) < seg.text.length) sample[who] = seg.text
+            if (r.hasAudio) {
+                val old = clip[who]?.second
+                if (old == null || seg.end - seg.start > old.end - old.start) clip[who] = r to seg
+            }
+        } }
+        return (count.keys).associateWith { PersonStats(count[it] ?: 0, clip[it], sample[it]) }
+    }
+
+    private fun playClip(c: Pair<Recording, Segment>) =
+        player.playRange(c.first, (c.second.start * 1000).toInt(), (c.second.end * 1000).toInt() + 300)
+
+    /** 人物页：说过话的人，可以听一下、起名字、合并 */
     @Composable
     private fun PeoplePage(recs: List<Recording>) {
         @Suppress("UNUSED_EXPRESSION") speakerVersion
         val all = Speakers.all(this)
         val scope = rememberCoroutineScope()
-        // 统计每个人（合并后）一共说了多少句
-        val counts = HashMap<String, Int>()
-        recs.forEach { r -> Transcripts.get(this, r.name)?.segments?.forEach { seg ->
-            Speakers.resolve(this, seg.speaker)?.let { counts[it.id] = (counts[it.id] ?: 0) + 1 } } }
-        val people = all.values.filter { it.mergedInto == null }.sortedByDescending { counts[it.id] ?: 0 }
-        var editing by remember { mutableStateOf<Speaker?>(null) }
-        var merging by remember { mutableStateOf<Speaker?>(null) }
+        val stats = personStats(recs)
+        // 没说过一句话的不显示（分离模型偶尔会多分出"空人"）；起过名字的一直显示
+        val people = all.values.filter { it.mergedInto == null && ((stats[it.id]?.count ?: 0) > 0 || it.name != null) }
+            .sortedWith(compareBy<Speaker>({ it.name == null }, { -(stats[it.id]?.count ?: 0) }))
 
         LazyColumn(Modifier.fillMaxWidth()) {
             if (people.isEmpty()) item {
-                Text("还没有认出任何人。家里的 Mac 开启「区分说话人」后，转写结果里出现的人会列在这里，你可以给他们起名字。",
+                Text("还没有认出任何人。转写结果里出现的人会列在这里，你可以给他们起名字。",
                     Modifier.padding(vertical = 24.dp), color = MaterialTheme.colorScheme.outline)
+            } else item {
+                Text("先点「听一下」确认是谁。同一个人被分成了好几个，就点「和别人是同一个人」并到一起。",
+                    Modifier.padding(top = 8.dp, bottom = 4.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
             }
             items(people, key = { it.id }) { p ->
+                val st = stats[p.id]
                 val aliases = all.values.filter { it.mergedInto != null && Speakers.resolve(this@MainActivity, it.id)?.id == p.id }
-                Column(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+                Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(p.name ?: p.defaultName, Modifier.weight(1f),
                             style = MaterialTheme.typography.titleMedium,
                             color = if (p.name == null) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface)
-                        Text("${counts[p.id] ?: 0} 句", color = MaterialTheme.colorScheme.outline, fontSize = 13.sp)
+                        Text("${st?.count ?: 0} 句", color = MaterialTheme.colorScheme.outline, fontSize = 13.sp)
                     }
-                    p.firstSeen?.let { Text("第一次出现：${it.replace('T', ' ').take(19)}", fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.outline) }
-                    p.sample?.let { Text("说过：「$it」", style = MaterialTheme.typography.bodyMedium) }
+                    (st?.sample ?: p.sample)?.let { Text("「$it」", style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis) }
                     if (aliases.isNotEmpty()) {
                         Text("已合并：" + aliases.joinToString("、") { it.name ?: it.defaultName },
                             fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row {
+                        st?.clip?.let { c -> TextButton(onClick = { playClip(c) }) { Text("▶ 听一下") } }
                         TextButton(onClick = { editing = p }) { Text("改名字") }
                         if (people.size > 1) TextButton(onClick = { merging = p }) { Text("和别人是同一个人") }
+                    }
+                    if (aliases.isNotEmpty()) Row {
                         aliases.forEach { a ->
                             TextButton(onClick = { scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                                 Speakers.edit(this@MainActivity, a.id, unmerge = true); speakerVersion++ } }) {
@@ -447,14 +489,29 @@ class MainActivity : ComponentActivity() {
                 }
                 HorizontalDivider()
             }
+            item { Spacer(Modifier.height(24.dp)) }
         }
+    }
 
+    /** 改名字 / 合并 的对话框，文字页和人物页共用 */
+    @Composable
+    private fun PersonDialogs(recs: List<Recording>) {
+        val scope = rememberCoroutineScope()
         editing?.let { p ->
             var text by remember(p.id) { mutableStateOf(p.name ?: "") }
+            val clip = personStats(recs)[p.id]?.clip
             AlertDialog(
                 onDismissRequest = { editing = null },
                 title = { Text("给 ${p.name ?: p.defaultName} 起名字") },
-                text = { OutlinedTextField(text, { text = it }, singleLine = true, placeholder = { Text("比如：我、老王、妈妈") }) },
+                text = {
+                    Column {
+                        OutlinedTextField(text, { text = it }, singleLine = true, placeholder = { Text("比如：我、老王、妈妈") })
+                        Row {
+                            clip?.let { c -> TextButton(onClick = { playClip(c) }) { Text("▶ 听一下") } }
+                            TextButton(onClick = { merging = p; editing = null }) { Text("其实是别人…") }
+                        }
+                    }
+                },
                 confirmButton = { TextButton(onClick = {
                     scope.launch(kotlinx.coroutines.Dispatchers.IO) { Speakers.edit(this@MainActivity, p.id, name = text); speakerVersion++ }
                     editing = null }) { Text("保存") } },
@@ -462,19 +519,34 @@ class MainActivity : ComponentActivity() {
             )
         }
         merging?.let { p ->
+            val stats = personStats(recs)
+            val others = Speakers.all(this).values.filter {
+                it.mergedInto == null && it.id != p.id && ((stats[it.id]?.count ?: 0) > 0 || it.name != null)
+            }.sortedWith(compareBy<Speaker>({ it.name == null }, { -(stats[it.id]?.count ?: 0) }))
             AlertDialog(
                 onDismissRequest = { merging = null },
                 title = { Text("${p.name ?: p.defaultName} 其实是谁？") },
                 text = {
-                    Column {
-                        Text("选中的人会和 ${p.name ?: p.defaultName} 合并成一个，以后两种声音都认成他。合并后还能拆开。",
-                            fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
-                        people.filter { it.id != p.id }.forEach { t ->
-                            TextButton(onClick = {
-                                scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                                    Speakers.edit(this@MainActivity, p.id, mergeInto = t.id); speakerVersion++ }
-                                merging = null
-                            }) { Text(t.name ?: t.defaultName) }
+                    LazyColumn(Modifier.heightIn(max = 420.dp)) {
+                        item {
+                            Text("点名字合并。合并后以后两种声音都认成同一个人，之后还能拆开。",
+                                fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+                        }
+                        items(others, key = { it.id }) { t ->
+                            val st = stats[t.id]
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f).clickable {
+                                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                        Speakers.edit(this@MainActivity, p.id, mergeInto = t.id); speakerVersion++ }
+                                    merging = null
+                                }.padding(vertical = 8.dp)) {
+                                    Text(t.name ?: t.defaultName, style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.primary)
+                                    st?.sample?.let { Text("「$it」", fontSize = 12.sp, maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.outline) }
+                                }
+                                st?.clip?.let { c -> TextButton(onClick = { playClip(c) }) { Text("▶") } }
+                            }
                         }
                     }
                 },
@@ -506,6 +578,20 @@ class MainActivity : ComponentActivity() {
                 today.minusDays(1) -> "昨天"
                 else -> "${d.format(MD)} $week"
             }
+        }
+
+        /** 锂电池电压 → 大致电量。小电池放电曲线，误差 ±10% 左右；插着 USB 充电时会偏高 */
+        private val BATT_CURVE = listOf(4200 to 100, 4100 to 90, 4000 to 78, 3900 to 65, 3800 to 50,
+            3750 to 40, 3700 to 30, 3650 to 20, 3600 to 12, 3500 to 5, 3300 to 0)
+
+        fun batteryPct(mv: Int): Int {
+            if (mv >= BATT_CURVE.first().first) return 100
+            if (mv <= BATT_CURVE.last().first) return 0
+            for (i in 0 until BATT_CURVE.size - 1) {
+                val (v1, p1) = BATT_CURVE[i]; val (v2, p2) = BATT_CURVE[i + 1]
+                if (mv in v2..v1) return p2 + (p1 - p2) * (mv - v2) / (v1 - v2)
+            }
+            return 0
         }
 
         fun fmtDuration(sec: Double): String {

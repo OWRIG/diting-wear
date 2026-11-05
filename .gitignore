@@ -1,0 +1,14 @@
+# 隐私：录音文件绝不提交
+recordings/
+*.wav
+*.opus
+*.ogg
+*.m4a
+
+# 编译产物
+firmware/build*/
+__pycache__/
+.venv/
+
+# 系统文件
+.DS_Store

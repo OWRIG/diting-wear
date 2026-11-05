@@ -5,7 +5,7 @@
   "project_sha256": "8c32a4324b7b4c50632ef5eeeee2f2aebba3bbc1544705d06f198a86b0ee8536",
   "gcode": "diting-case-v1-K3.gcode",
   "gcode_sha256": "fd48bdf66885aa2e589a64dfab4840e2c3d96a8cd70ec08714de8051667543b6",
-  "geometry_report_sha256": "965d68556cb7349fb57dc6d33c197fa90ff5211af8c26300a69e7a0c0e86a84a",
+  "geometry_report_sha256": "143e44a81231c7148bd6be443d479c6a5b4324117370189fbf75b82a11e06d61",
   "invocation": {
     "command": [
       "/Applications/Creality Print.app/Contents/MacOS/CrealityPrint",
@@ -47,6 +47,9 @@
   "actual_layer_height_range_mm": [
     0.16,
     0.160001
+  ],
+  "logical_tool_commands": [
+    "T0"
   ],
   "effective_settings_from_gcode": {
     "layer_height": "0.16",
@@ -225,7 +228,19 @@
       ],
       "limitations": "仅检查刀路与几何；未验证0.9mm侧向小台阶、桥接下垂、首层附着和PLA弹性等实物表现。"
     },
-    "physical_result_verified": false
+    "physical_result_verified": false,
+    "image_pixel_sha256": {
+      "assembly-back.png": "293812d8a8f7d98d0056d99e00f8489382d4366fa0260b511bd97c5805a10bd3",
+      "assembly-front.png": "0feb3c6eceb7dc9c31f08be06eea2f91a801296e4c056c8d0e78cd838d14949b",
+      "back-slot.png": "683d89813b2f4958d9fce35164bf965e198a5a8f969efa9e464a573b4cec9d88",
+      "clip-side.png": "8337afa141cf23e41c2de87df89534702860f0d42ca799323a9a19129720d840",
+      "exploded-back.png": "87be6008a2cc6d9e188bb26ba4d92beb20c666c24a2124ac263d9cc640f7f95c",
+      "exploded.png": "0b5d77aa3c13a9aef65d1d14084d2a8491b6f509a430c899cc73736243dc80eb",
+      "front-inside.png": "edaabeaa049f86a4d8673a1c2111f3b77b0d95604964fb704f614f5bdefc4db1",
+      "front-orthographic.png": "2202ce644d5806351b45bdf86047d181095e7ee0f9c46769768035f35a064b4c",
+      "print-layout.png": "83759a449abedd4d70e14410e91af501f7a8edb82e6affd6d9ff70204e333445"
+    },
+    "image_identity_method": "PNG IHDR+IDAT content; exclude Blender Date/RenderTime text metadata; originally viewed file hashes also retained."
   },
   "machine_actions_performed_by_agent": false,
   "physical_result_verified": false,

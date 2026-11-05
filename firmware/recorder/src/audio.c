@@ -6,10 +6,10 @@
 #include <zephyr/drivers/gpio.h>
 #include <opus.h>
 #include "app.h"
+#include "agc.h"
 
 #define BLOCK_BYTES  (FRAME_SAMPLES * 2)
 #define BLOCK_COUNT  8                    /* 8 × 20ms = 160ms 缓冲 */
-#define SW_GAIN      4                    /* 数字增益 ×4 (+12dB)，实测原始电平偏低 */
 #define STATS_EVERY  250                  /* 每 250 帧 (5 秒) 打印一次统计 */
 
 K_MEM_SLAB_DEFINE_STATIC(pcm_slab, BLOCK_BYTES, BLOCK_COUNT, 4);
@@ -56,14 +56,6 @@ static int encoder_init(void)
 	return 0;
 }
 
-static void apply_gain(int16_t *s, int n)
-{
-	for (int i = 0; i < n; i++) {
-		int32_t v = (int32_t)s[i] * SW_GAIN;
-		s[i] = CLAMP(v, INT16_MIN, INT16_MAX);
-	}
-}
-
 static void drain_mic(void)
 {
 	void *buf;
@@ -84,6 +76,7 @@ static void stream_session(void)
 		k_msleep(1000);
 		return;
 	}
+	agc_init();
 	gpio_pin_set_dt(&led, 1);
 	printk("mic ON\n");
 
@@ -95,7 +88,7 @@ static void stream_session(void)
 			printk("mic read timeout\n");
 			continue;
 		}
-		apply_gain(buf, size / 2);
+		agc_process(buf, size / 2);
 
 		uint32_t t0 = k_cycle_get_32();
 		int n = opus_encode(enc, buf, FRAME_SAMPLES, out, sizeof(out));
@@ -115,9 +108,11 @@ static void stream_session(void)
 		enc_us_sum += us;
 		enc_us_max = MAX(enc_us_max, us);
 		if (frames % STATS_EVERY == 0) {
-			printk("[stats] %u frames, %u B/s, encode avg %u us max %u us, send errors %u\n",
+			printk("[stats] %u frames, %u B/s, encode avg %u us max %u us, send errors %u, "
+			       "gain %d dB, noise %d dBFS, limited %u\n",
 			       frames, bytes * 1000 / (STATS_EVERY * FRAME_MS),
-			       enc_us_sum / STATS_EVERY, enc_us_max, send_err);
+			       enc_us_sum / STATS_EVERY, enc_us_max, send_err,
+			       (int)agc_gain_db(), (int)agc_noise_db(), agc_limited_frames());
 			bytes = enc_us_sum = enc_us_max = 0;
 		}
 	}

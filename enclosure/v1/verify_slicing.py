@@ -166,6 +166,7 @@ def audit():
         'filament_used_mm': scalar(r'; filament used \[mm\] = ([\d.]+)'),
         'filament_used_cm3': scalar(r'; filament used \[cm3\] = ([\d.]+)'),
         'layer_count': len(layer_z), 'actual_layer_height_range_mm': [min(layer_h), max(layer_h)],
+        'logical_tool_commands': sorted(set(re.findall(r'^T\d+\s*$', text, re.M))),
         'effective_settings_from_gcode': {key: effective[key] for key in EXPECTED},
         'native_object_overrides': native_overrides, 'different_settings_to_system_contains_all_overrides': True,
         'toolpath_checks': {'features_extrusion_commands': dict(feature_commands),
@@ -183,9 +184,27 @@ def audit():
     review_path = HERE/'visual-review.json'
     if review_path.exists():
         review = json.loads(review_path.read_text())
-        if review.get('design_sha256') == geometry['design_sha256']:
+        if (review.get('design_sha256') == geometry['design_sha256'] and
+                geometry['previews'].get('reviewed_png_pixels_match_current_files') and
+                review.get('toolpath_review', {}).get('gcode_sha256') == sha(GCODE)):
             report['preview_review'] = review
     (HERE/'slicing-report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n')
+    printing = f'''谛听外壳 v1 — PLA 装配打样
+
+1. 用 Creality Print 打开 diting-case-v1-K3.3mf，选择“打开工程”，保持100%尺寸。
+   同名 .gcode 已在本机切好；3MF 是可重新切片的工程，不含刀路缓存。
+2. 保持工程中的摆放：前壳正面向下，挂绳耳贴板；后盖外表面向下；背夹侧躺，+x侧朝下。
+   可对照 previews/print-layout.png；三件同盘，最小间距6.35mm。
+3. 工艺：K3、0.4mm喷嘴、1.75mm Hyper PLA、纹理PEI板；0.16mm层高（首层也0.16）、3墙、100%填充。
+   无支撑、无brim、无skirt、无擦料塔。启动时仍有K3原配的擦嘴/排料线。
+4. 本地切片估算：{time_seconds//60}分{time_seconds%60:02d}秒，约{report['filament_used_g']:.2f}g（{report['filament_used_mm']/1000:.3f}m），共{len(layer_z)}层。
+   实机准备、预热与校准会影响实际用时。预览的三种颜色用来区分零件，工程实际为单色。
+5. 手动开始前确认：机型K3和0.4喷嘴正确，逻辑T0对应喷嘴/料位确实装有PLA，床面清洁且没有旧件，三件方向与预览一致。
+   打印由你手动开始。待冷却后取件，再从后口放板、扣后盖；背夹从USB端滑入，朝挂绳端挡块推进。
+6. 首次重点看：USB/麦克风高度是推算；燕尾斜边顶端仅约0.07mm水平间隙，桥接毛边可能使它偏紧；PLA背夹先轻压试装，确认弹性。
+   保留无brim工艺时，请留意舌片两小脚的首层附着。换PETG需要选择对应材料并重新切片。
+'''
+    (HERE/'PRINTING.txt').write_text(printing)
     print(f'SLICE_QA_OK: {time_text}, {report["filament_used_g"]} g, {len(layer_z)} layers; support/brim absent')
     return segments
 

@@ -1,0 +1,90 @@
+{
+  "command": "/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python enclosure/v1/build.py",
+  "extra_environment_variables": {},
+  "exit_code": 0,
+  "method": "All build outputs absent before the exact command in a new shell. Compared three STL and native 3MF by entire-file hash, nine PNG by pixel-data hash because renderer timestamps vary.",
+  "all_expected_files_recreated": true,
+  "deterministic_output_comparisons": {
+    "parts/case-back.stl": {
+      "comparison": "entire file",
+      "before_sha256": "f025757705f69dfc2f0cf68a76e2ae2838b7211c0814949a995ed338140ce190",
+      "after_sha256": "f025757705f69dfc2f0cf68a76e2ae2838b7211c0814949a995ed338140ce190",
+      "identical": true
+    },
+    "parts/case-front.stl": {
+      "comparison": "entire file",
+      "before_sha256": "b5f030e233590f018cc0d7250841883fea690e7eb682442003a80843cb8cde15",
+      "after_sha256": "b5f030e233590f018cc0d7250841883fea690e7eb682442003a80843cb8cde15",
+      "identical": true
+    },
+    "parts/clip.stl": {
+      "comparison": "entire file",
+      "before_sha256": "3eaaa5f3ed27190ceae3e635d60f3f7cd3499ca544fd5f51ca25864131adc4a9",
+      "after_sha256": "3eaaa5f3ed27190ceae3e635d60f3f7cd3499ca544fd5f51ca25864131adc4a9",
+      "identical": true
+    },
+    "previews/assembly-back.png": {
+      "comparison": "PNG IHDR+IDAT; Date/RenderTime metadata excluded",
+      "before_sha256": "293812d8a8f7d98d0056d99e00f8489382d4366fa0260b511bd97c5805a10bd3",
+      "after_sha256": "293812d8a8f7d98d0056d99e00f8489382d4366fa0260b511bd97c5805a10bd3",
+      "identical": true
+    },
+    "previews/assembly-front.png": {
+      "comparison": "PNG IHDR+IDAT; Date/RenderTime metadata excluded",
+      "before_sha256": "0feb3c6eceb7dc9c31f08be06eea2f91a801296e4c056c8d0e78cd838d14949b",
+      "after_sha256": "0feb3c6eceb7dc9c31f08be06eea2f91a801296e4c056c8d0e78cd838d14949b",
+      "identical": true
+    },
+    "previews/back-slot.png": {
+      "comparison": "PNG IHDR+IDAT; Date/RenderTime metadata excluded",
+      "before_sha256": "683d89813b2f4958d9fce35164bf965e198a5a8f969efa9e464a573b4cec9d88",
+      "after_sha256": "683d89813b2f4958d9fce35164bf965e198a5a8f969efa9e464a573b4cec9d88",
+      "identical": true
+    },
+    "previews/clip-side.png": {
+      "comparison": "PNG IHDR+IDAT; Date/RenderTime metadata excluded",
+      "before_sha256": "8337afa141cf23e41c2de87df89534702860f0d42ca799323a9a19129720d840",
+      "after_sha256": "8337afa141cf23e41c2de87df89534702860f0d42ca799323a9a19129720d840",
+      "identical": true
+    },
+    "previews/exploded-back.png": {
+      "comparison": "PNG IHDR+IDAT; Date/RenderTime metadata excluded",
+      "before_sha256": "87be6008a2cc6d9e188bb26ba4d92beb20c666c24a2124ac263d9cc640f7f95c",
+      "after_sha256": "87be6008a2cc6d9e188bb26ba4d92beb20c666c24a2124ac263d9cc640f7f95c",
+      "identical": true
+    },
+    "previews/exploded.png": {
+      "comparison": "PNG IHDR+IDAT; Date/RenderTime metadata excluded",
+      "before_sha256": "0b5d77aa3c13a9aef65d1d14084d2a8491b6f509a430c899cc73736243dc80eb",
+      "after_sha256": "0b5d77aa3c13a9aef65d1d14084d2a8491b6f509a430c899cc73736243dc80eb",
+      "identical": true
+    },
+    "previews/front-inside.png": {
+      "comparison": "PNG IHDR+IDAT; Date/RenderTime metadata excluded",
+      "before_sha256": "edaabeaa049f86a4d8673a1c2111f3b77b0d95604964fb704f614f5bdefc4db1",
+      "after_sha256": "edaabeaa049f86a4d8673a1c2111f3b77b0d95604964fb704f614f5bdefc4db1",
+      "identical": true
+    },
+    "previews/front-orthographic.png": {
+      "comparison": "PNG IHDR+IDAT; Date/RenderTime metadata excluded",
+      "before_sha256": "2202ce644d5806351b45bdf86047d181095e7ee0f9c46769768035f35a064b4c",
+      "after_sha256": "2202ce644d5806351b45bdf86047d181095e7ee0f9c46769768035f35a064b4c",
+      "identical": true
+    },
+    "previews/print-layout.png": {
+      "comparison": "PNG IHDR+IDAT; Date/RenderTime metadata excluded",
+      "before_sha256": "83759a449abedd4d70e14410e91af501f7a8edb82e6affd6d9ff70204e333445",
+      "after_sha256": "83759a449abedd4d70e14410e91af501f7a8edb82e6affd6d9ff70204e333445",
+      "identical": true
+    },
+    "diting-case-v1-K3.3mf": {
+      "comparison": "entire file",
+      "before_sha256": "8c32a4324b7b4c50632ef5eeeee2f2aebba3bbc1544705d06f198a86b0ee8536",
+      "after_sha256": "8c32a4324b7b4c50632ef5eeeee2f2aebba3bbc1544705d06f198a86b0ee8536",
+      "identical": true
+    }
+  },
+  "identical_geometry_files": 4,
+  "identical_preview_pixel_data": 9,
+  "geometry_report_and_blend_regenerated": true
+}

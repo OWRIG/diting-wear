@@ -37,6 +37,7 @@ object Recordings {
             val start = parseStart(f)
             if (start != null && start.isBefore(keepFrom)) f.delete()
         }
+        Waveforms.cleanup(dir)
     }
 
     /** 读 Ogg 文件最后一页的 granule position 得到时长（48kHz，去掉 pre-skip） */

@@ -152,16 +152,22 @@ class MainActivity : ComponentActivity() {
                 }
                 items(list, key = { it.file.name }) { r ->
                     val selected = player.current?.file == r.file
-                    Row(
+                    var wave by remember(r.file.name) { mutableStateOf(Waveforms.cached(r.file)) }
+                    LaunchedEffect(r.file.name) { if (wave == null) wave = Waveforms.get(r.file) }
+                    Column(
                         Modifier.fillMaxWidth()
                             .background(if (selected) MaterialTheme.colorScheme.secondaryContainer
                                         else MaterialTheme.colorScheme.surface)
                             .clickable { player.open(r) }
-                            .padding(vertical = 12.dp, horizontal = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                            .padding(vertical = 10.dp, horizontal = 4.dp),
                     ) {
-                        Text("${r.start.format(HM)} – ${r.end.format(HM)}", fontSize = 16.sp)
-                        Text(fmtDuration(r.durationSec), color = MaterialTheme.colorScheme.outline)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("${r.start.format(HM)} – ${r.end.format(HM)}", fontSize = 16.sp)
+                            Text(fmtDuration(r.durationSec), color = MaterialTheme.colorScheme.outline)
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Waveform(wave, Modifier.fillMaxWidth().height(24.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
                     }
                     HorizontalDivider()
                 }
@@ -182,11 +188,19 @@ class MainActivity : ComponentActivity() {
                     TextButton(onClick = { player.close() }) { Text("关闭") }
                 }
                 val dur = player.durationMs.coerceAtLeast(1)
-                Slider(
-                    value = dragging ?: (player.positionMs.toFloat() / dur),
-                    onValueChange = { dragging = it },
-                    onValueChangeFinished = { dragging?.let { player.seekTo((it * dur).toInt()) }; dragging = null },
+                var wave by remember(r.file.name) { mutableStateOf(Waveforms.cached(r.file)) }
+                LaunchedEffect(r.file.name) { if (wave == null) wave = Waveforms.get(r.file) }
+                Spacer(Modifier.height(4.dp))
+                Waveform(
+                    wave,
+                    Modifier.fillMaxWidth().height(56.dp),
+                    progress = dragging ?: (player.positionMs.toFloat() / dur),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                    playedColor = MaterialTheme.colorScheme.primary,
+                    onSeekPreview = { dragging = it },
+                    onSeek = { player.seekTo((it * dur).toInt()); dragging = null },
                 )
+                Spacer(Modifier.height(4.dp))
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     val shown = dragging?.let { (it * dur).toInt() } ?: player.positionMs
                     Text(fmtMs(shown), style = MaterialTheme.typography.bodySmall)

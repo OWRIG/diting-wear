@@ -1,0 +1,17 @@
+# 谛听信箱。不对外暴露端口，由现有的 Caddy 通过 docker 网络反向代理。
+services:
+  mailbox:
+    build:
+      context: .
+      args:
+        BASE: docker.m.daocloud.io/library/python:3.13-slim
+    container_name: diting-mailbox
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
+    networks: [caddy]
+networks:
+  caddy:
+    name: deploy_default
+    external: true

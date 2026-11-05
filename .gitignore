@@ -20,3 +20,6 @@ android/app/build/
 android/local.properties
 android/.idea/
 *.apk
+
+# 密钥和 token，绝不提交
+.secrets/

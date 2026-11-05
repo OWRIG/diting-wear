@@ -58,6 +58,8 @@ class RecorderService : Service() {
                     currentChunkSeconds = chunks.currentSeconds)
             }
         }, 1, 1, TimeUnit.SECONDS)
+        // 每小时清理一次 7 天前的录音
+        io.scheduleAtFixedRate({ Recordings.cleanup(chunkDir(this)) }, 0, 1, TimeUnit.HOURS)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

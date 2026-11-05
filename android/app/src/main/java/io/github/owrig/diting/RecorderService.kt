@@ -65,6 +65,7 @@ class RecorderService : Service() {
         // 录音时每 5 分钟记一次位置（只存在手机上）
         io.scheduleWithFixedDelay({
             if (AppState.status.value.link == LinkState.STREAMING) Places.requestFix(this)
+            Places.backfill(this)
         }, 10, 300, TimeUnit.SECONDS)
         // 每小时清理一次 7 天前的录音
         io.scheduleAtFixedRate({ Recordings.cleanup(chunkDir(this)) }, 0, 1, TimeUnit.HOURS)

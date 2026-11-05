@@ -20,13 +20,15 @@ import kotlin.math.abs
 /** 一个地点：第一次在这里定位时自动创建，用户可以起名字、和别的地点合并 */
 data class Place(
     val id: Int,
-    val name: String?,
+    val name: String?,          // 用户起的名字
     val lat: Double,
     val lon: Double,
     val mergedInto: Int?,
+    val auto: String? = null,   // 系统地址服务查到的短名字，比如小区名、大厦名
+    val area: String? = null,   // 区 · 路，用来区分重名
 ) {
-    val defaultName: String get() = "未命名地点 #$id"
-    val label: String get() = name ?: defaultName
+    /** 显示的名字：用户起的 > 自动查到的 > 经纬度 */
+    val label: String get() = name ?: auto ?: "%.4f, %.4f".format(lat, lon)
 }
 
 /** 一次定位记录 */
@@ -61,7 +63,9 @@ object Places {
                 (0 until a.length()).map { i -> a.getJSONObject(i).let { o ->
                     Place(o.getInt("id"), o.optString("name").takeIf { !o.isNull("name") && it.isNotBlank() },
                         o.getDouble("lat"), o.getDouble("lon"),
-                        if (o.isNull("merged_into")) null else o.optInt("merged_into"))
+                        if (o.isNull("merged_into")) null else o.optInt("merged_into"),
+                        o.optString("auto").takeIf { !o.isNull("auto") && it.isNotBlank() },
+                        o.optString("area").takeIf { !o.isNull("area") && it.isNotBlank() })
                 } }
             }
         }.getOrDefault(emptyList()).also { places = it }
@@ -72,6 +76,7 @@ object Places {
         list.forEach { p -> a.put(JSONObject().apply {
             put("id", p.id); put("name", p.name ?: JSONObject.NULL)
             put("lat", p.lat); put("lon", p.lon); put("merged_into", p.mergedInto ?: JSONObject.NULL)
+            put("auto", p.auto ?: JSONObject.NULL); put("area", p.area ?: JSONObject.NULL)
         }) }
         val tmp = File(dir(ctx), "places.json.tmp")
         tmp.writeText(a.toString())
@@ -116,7 +121,8 @@ object Places {
                 .filter { it.second <= SAME_PLACE_M }.minByOrNull { it.second }?.first
             val placeId = near?.id ?: run {
                 val id = (list.maxOfOrNull { it.id } ?: 0) + 1
-                save(ctx, list + Place(id, null, loc.latitude, loc.longitude, null))
+                val (auto, area) = geocode(ctx, loc.latitude, loc.longitude)
+                save(ctx, list + Place(id, null, loc.latitude, loc.longitude, null, auto, area))
                 id
             }
             val fix = Fix(loc.time.takeIf { it > 0 } ?: System.currentTimeMillis(),
@@ -125,6 +131,42 @@ object Places {
                 put("t", fix.t); put("lat", fix.lat); put("lon", fix.lon); put("acc", fix.acc.toDouble()); put("place", fix.place)
             }.toString() + "\n")
             fixes = fixes(ctx) + fix
+        }
+    }
+
+    /**
+     * 用系统自带的地址服务把经纬度换成名字（每个新地点只查一次）。
+     * 查不到（没网、服务不可用）就返回 null，界面上先显示经纬度，之后 [backfill] 会再试。
+     */
+    fun geocode(ctx: Context, lat: Double, lon: Double): Pair<String?, String?> = runCatching {
+        if (!android.location.Geocoder.isPresent()) return null to null
+        @Suppress("DEPRECATION")
+        val a = android.location.Geocoder(ctx, java.util.Locale.CHINA).getFromLocation(lat, lon, 1)?.firstOrNull()
+            ?: return null to null
+        shortName(a.featureName, a.thoroughfare, a.subLocality) to
+            listOfNotNull(a.subLocality, a.thoroughfare).distinct().joinToString(" · ").ifBlank { null }
+    }.onFailure { Log.w(TAG, "geocode failed: ${it.message}") }.getOrDefault(null to null)
+
+    /** "某某路1605号某某小区" → "某某小区"；只有门牌号的，用"某某路1605号" */
+    internal fun shortName(feature: String?, street: String?, district: String?): String? {
+        val f = feature?.trim().orEmpty()
+        val afterNo = f.substringAfterLast('号', "").trim()
+        return when {
+            afterNo.length >= 2 -> afterNo
+            f.isNotEmpty() && !f.all { it.isDigit() } -> f
+            !street.isNullOrBlank() -> street
+            else -> district
+        }
+    }
+
+    /** 补查之前没查到名字的地点（比如当时没网） */
+    fun backfill(ctx: Context) {
+        val missing = all(ctx).filter { it.auto == null }
+        if (missing.isEmpty()) return
+        val found = missing.associate { it.id to geocode(ctx, it.lat, it.lon) }.filterValues { it.first != null }
+        if (found.isEmpty()) return
+        synchronized(lock) {
+            save(ctx, all(ctx).map { p -> found[p.id]?.let { (a, ar) -> p.copy(auto = a, area = ar) } ?: p })
         }
     }
 

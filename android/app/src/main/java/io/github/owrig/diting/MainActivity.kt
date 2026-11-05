@@ -83,6 +83,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Recordings.cleanup(RecorderService.chunkDir(this))
         hasLocation = Places.hasPermission(this)
+        Thread { Places.backfill(this) }.start()     // 之前没查到名字的地点，补查一次
         setContent { DitingTheme { Screen() } }
     }
 
@@ -268,7 +269,7 @@ class MainActivity : ComponentActivity() {
                 s.pendingUploads > 0 -> "待上传 ${s.pendingUploads} 段，每分钟自动重试"
                 else -> "已全部上传"
             })
-            InfoRow("定位", if (hasLocation) "已开启（只存在手机上）" else "未开启")
+            InfoRow("定位", if (hasLocation) "已开启（记录只存在手机上）" else "未开启")
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (s.link == LinkState.STOPPED) Button(onClick = { requestStart() }) { Text("开始录音") }
@@ -717,7 +718,7 @@ class MainActivity : ComponentActivity() {
         val all = Places.all(this)
         val stats = remember(dataVersion) { Places.stats(this) }
         val places = all.filter { it.mergedInto == null }
-            .sortedWith(compareBy<Place>({ it.name == null }, { -(stats[it.id]?.minutes ?: 0) }))
+            .sortedByDescending { stats[it.id]?.last }   // 最近去过的在前
         PageList {
             if (!hasLocation) item {
                 SectionCard {
@@ -726,7 +727,7 @@ class MainActivity : ComponentActivity() {
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text("定位没有开启", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text("开启后，录音时每 5 分钟记一次位置，只存在这台手机上，不上传。",
+                            Text("开启后，录音时每 5 分钟记一次位置，自动显示地名。位置记录只存在这台手机上，不上传到谛听的服务器。",
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -735,9 +736,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
             if (places.isEmpty() && hasLocation) item {
-                Empty(Icons.Rounded.Place, "还没有记录到地点", "录音时每 5 分钟记一次位置。200 米以内算同一个地方，你可以给它起名字，比如「家」「公司」。")
+                Empty(Icons.Rounded.Place, "还没有记录到地点", "录音时每 5 分钟记一次位置，自动显示地名。")
             }
-            if (places.isNotEmpty()) item { Hint("200 米以内算同一个地方。同一个地方被分成了两个，就点「合并」。") }
+            if (places.isNotEmpty()) item { Hint("地名是自动查的，200 米以内算同一个地方。想叫得顺口（比如「家」「公司」）可以改名，不改也行。") }
             items(places, key = { it.id }) { p ->
                 val st = stats[p.id]
                 val aliases = all.filter { it.mergedInto != null && Places.resolve(this@MainActivity, it.id)?.id == p.id }
@@ -749,8 +750,11 @@ class MainActivity : ComponentActivity() {
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(p.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
-                                color = if (p.name == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface)
+                            Text(p.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            if (p.name != null && p.auto != null) Text(p.auto, style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            p.area?.let { Text(it, style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant) }
                             Text(buildString {
                                 if (st != null) {
                                     append("去过 ${st.days} 天 · 约 ${fmtMinutes(st.minutes)}")
@@ -780,7 +784,7 @@ class MainActivity : ComponentActivity() {
             AlertDialog(
                 onDismissRequest = { editingPlace = null },
                 title = { Text("给 ${p.label} 起名字") },
-                text = { OutlinedTextField(text, { text = it }, singleLine = true, placeholder = { Text("比如：家、公司、健身房") }) },
+                text = { OutlinedTextField(text, { text = it }, singleLine = true, placeholder = { Text(p.auto ?: "比如：家、公司、健身房") }) },
                 confirmButton = { TextButton(onClick = { Places.rename(this, p.id, text); dataVersion++; editingPlace = null }) { Text("保存") } },
                 dismissButton = { TextButton(onClick = { editingPlace = null }) { Text("取消") } },
             )

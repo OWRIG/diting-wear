@@ -22,6 +22,8 @@ data class Status(
     val currentChunk: String? = null,
     val currentChunkSeconds: Double = 0.0,
     val message: String? = null,
+    val pendingUploads: Int = 0,
+    val uploadedThisSession: Int = 0,
 )
 
 /** 服务和界面之间共享的状态 */

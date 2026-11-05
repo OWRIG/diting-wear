@@ -23,12 +23,14 @@ class RecorderService : Service() {
     private val io = Executors.newSingleThreadScheduledExecutor()   // 所有文件操作都在这个线程
     private var wakeLock: PowerManager.WakeLock? = null
     private var bytesThisSecond = 0
+    private lateinit var uploader: Uploader
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         chunks = ChunkRecorder(chunkDir(this))
+        uploader = Uploader(this)
         ble = BleLink(
             this,
             onAudio = { seq, opus ->
@@ -60,6 +62,11 @@ class RecorderService : Service() {
         }, 1, 1, TimeUnit.SECONDS)
         // 每小时清理一次 7 天前的录音
         io.scheduleAtFixedRate({ Recordings.cleanup(chunkDir(this)) }, 0, 1, TimeUnit.HOURS)
+        // 每分钟检查一次有没有录好但还没上传的文件
+        io.scheduleWithFixedDelay({
+            val (ok, left) = uploader.uploadPending()
+            AppState.update { it.copy(pendingUploads = left, uploadedThisSession = it.uploadedThisSession + ok) }
+        }, 5, 60, TimeUnit.SECONDS)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

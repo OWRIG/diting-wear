@@ -33,6 +33,7 @@ import java.util.Locale
 class MainActivity : ComponentActivity() {
 
     private val player = Player()
+    private val uploader by lazy { Uploader(this) }
 
     private val permLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { res ->
@@ -122,6 +123,12 @@ class MainActivity : ComponentActivity() {
                 val lossPct = if (s.totalPackets > 0)
                     s.lostPackets * 100.0 / (s.totalPackets + s.lostPackets) else 0.0
                 Text("丢包 %.2f%%".format(lossPct), style = MaterialTheme.typography.bodySmall)
+                val cfg = Config.load(this@MainActivity)
+                Text(
+                    if (cfg == null) "未配置服务器，不会上传"
+                    else if (s.pendingUploads > 0) "待上传 ${s.pendingUploads} 段（每分钟自动重试）"
+                    else "已全部上传",
+                    style = MaterialTheme.typography.bodySmall)
                 if (s.currentChunk != null && s.link == LinkState.STREAMING) {
                     val start = Recordings.parseStart(java.io.File(s.currentChunk))
                     Text("当前片段 ${start?.format(HM) ?: ""} 起，已录 ${fmtDuration(s.currentChunkSeconds)}",
@@ -163,7 +170,11 @@ class MainActivity : ComponentActivity() {
                     ) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("${r.start.format(HM)} – ${r.end.format(HM)}", fontSize = 16.sp)
-                            Text(fmtDuration(r.durationSec), color = MaterialTheme.colorScheme.outline)
+                            Row {
+                                Text(if (uploader.isUploaded(r.file)) "已上传 · " else "待上传 · ",
+                                    color = MaterialTheme.colorScheme.outline, fontSize = 13.sp)
+                                Text(fmtDuration(r.durationSec), color = MaterialTheme.colorScheme.outline)
+                            }
                         }
                         Spacer(Modifier.height(6.dp))
                         Waveform(wave, Modifier.fillMaxWidth().height(24.dp),

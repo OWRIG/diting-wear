@@ -206,7 +206,7 @@ def plot(segments):
         axis.grid(alpha=.15)
     fig.suptitle('Diting v1 / actual K3 G-code / blue: front, gold: back, green: clip', fontsize=12)
     fig.tight_layout()
-    fig.savefig(HERE/'previews'/'toolpaths.png', dpi=160)
+    fig.savefig(HERE/'sliced'/'toolpaths.png', dpi=160)
     plt.close(fig)
 
 

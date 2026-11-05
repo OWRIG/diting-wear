@@ -9,7 +9,7 @@ import java.net.URL
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
 
-data class Segment(val start: Double, val end: Double, val text: String)
+data class Segment(val start: Double, val end: Double, val text: String, val speaker: String? = null)
 data class Transcript(val name: String, val durationSec: Double, val text: String, val segments: List<Segment>)
 
 /**
@@ -57,7 +57,8 @@ object Transcripts {
         val segs = o.optJSONArray("segments")
         val list = (0 until (segs?.length() ?: 0)).map {
             val s = segs!!.getJSONObject(it)
-            Segment(s.optDouble("start"), s.optDouble("end"), s.optString("text"))
+            Segment(s.optDouble("start"), s.optDouble("end"), s.optString("text"),
+                s.optString("speaker").takeIf { it.isNotBlank() })
         }
         return Transcript(o.getString("name"), o.optDouble("duration_s", 0.0), o.optString("text"), list)
     }

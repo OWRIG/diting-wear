@@ -95,26 +95,103 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        var tab by remember { mutableIntStateOf(0) }
+        var showStatus by remember { mutableStateOf(false) }
+
         Scaffold(bottomBar = { if (player.current != null) PlayerBar() }) { pad ->
             Column(Modifier.padding(pad).padding(horizontal = 16.dp).fillMaxSize()) {
-                Spacer(Modifier.height(12.dp))
-                Text("谛听", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(12.dp))
-                StatusCard(s)
-                Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("谛听", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(12.dp))
+                    // 一行简要状态，点开看详情
+                    val dot = if (s.link == LinkState.STREAMING) "●" else "○"
+                    val batt = s.batteryMv?.let { " · %.2fV".format(it / 1000.0) } ?: ""
+                    Text("$dot ${s.link.label}$batt", Modifier.weight(1f).clickable { showStatus = !showStatus },
+                        color = if (s.link == LinkState.STREAMING) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.outline,
+                        style = MaterialTheme.typography.bodyMedium)
                     if (s.link == LinkState.STOPPED) {
                         Button(onClick = { requestStart() }) { Text("开始录音") }
-                    } else {
-                        OutlinedButton(onClick = { stopRecorder() }) { Text("停止") }
-                    }
-                    if (!whitelisted) {
-                        OutlinedButton(onClick = { requestBatteryWhitelist() }) { Text("允许后台运行") }
                     }
                 }
-                Spacer(Modifier.height(8.dp))
-                RecordingList(recs)
+                if (showStatus || s.link == LinkState.STOPPED) {
+                    Spacer(Modifier.height(8.dp))
+                    StatusCard(s)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (s.link != LinkState.STOPPED) {
+                            OutlinedButton(onClick = { stopRecorder() }) { Text("停止录音") }
+                        }
+                        if (!whitelisted) {
+                            OutlinedButton(onClick = { requestBatteryWhitelist() }) { Text("允许后台运行") }
+                        }
+                    }
+                }
+                TabRow(selectedTabIndex = tab, Modifier.padding(top = 8.dp)) {
+                    Tab(tab == 0, onClick = { tab = 0 }, text = { Text("文字") })
+                    Tab(tab == 1, onClick = { tab = 1 }, text = { Text("录音") })
+                }
+                if (tab == 0) TextTimeline(recs) else RecordingList(recs)
             }
+        }
+    }
+
+    /** 纯文字时间线：按天分组（新的一天在上），一天之内按时间顺序；点一句从那里开始播放 */
+    @Composable
+    private fun TextTimeline(recs: List<Recording>) {
+        data class Line(val rec: Recording, val seg: Segment) {
+            val at = rec.start.plusNanos((seg.start * 1e9).toLong())
+        }
+        val lines = recs.flatMap { r ->
+            Transcripts.get(this, r.name)?.segments?.filter { it.text.isNotBlank() }?.map { Line(r, it) } ?: emptyList()
+        }
+        val byDay = lines.groupBy { it.at.toLocalDate() }.toSortedMap(compareByDescending { it })
+        val playingName = player.current?.name
+        val pos = player.positionMs / 1000.0
+        LazyColumn(Modifier.fillMaxWidth()) {
+            if (lines.isEmpty()) item {
+                Text("还没有转写出来的文字。录音上传后，家里的 Mac 转写完会自动出现在这里。",
+                    Modifier.padding(vertical = 24.dp), color = MaterialTheme.colorScheme.outline)
+            }
+            byDay.forEach { (day, dayLines) ->
+                item(key = "d$day") {
+                    Text(dayLabel(day), Modifier.padding(top = 16.dp, bottom = 6.dp),
+                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                }
+                val sorted = dayLines.sortedBy { it.at }
+                items(sorted.size, key = { "${sorted[it].rec.name}#${sorted[it].seg.start}" }) { i ->
+                    val l = sorted[i]
+                    val active = l.rec.name == playingName && pos >= l.seg.start && pos < l.seg.end + 0.3
+                    val prev = sorted.getOrNull(i - 1)
+                    // 和上一句隔了 2 分钟以上，加一点空白，方便看出"一段对话"
+                    if (prev != null && java.time.Duration.between(prev.at, l.at).seconds > 120) {
+                        Spacer(Modifier.height(10.dp))
+                    }
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .clickable {
+                                if (l.rec.hasAudio) {
+                                    if (player.current?.name != l.rec.name) player.open(l.rec)
+                                    player.seekTo((l.seg.start * 1000).toInt())
+                                }
+                            }
+                            .padding(vertical = 5.dp),
+                    ) {
+                        Text(l.at.format(T), Modifier.width(68.dp),
+                            color = MaterialTheme.colorScheme.outline, fontSize = 12.sp)
+                        Column(Modifier.weight(1f)) {
+                            l.seg.speaker?.let {
+                                Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.tertiary)
+                            }
+                            Text(l.seg.text, style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                                color = if (active) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                }
+            }
+            item { Spacer(Modifier.height(24.dp)) }
         }
     }
 

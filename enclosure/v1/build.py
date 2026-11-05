@@ -21,6 +21,7 @@ from mathutils.bvhtree import BVHTree
 # All design dimensions are in assembly coordinates, mm; DESIGN.md is read-only.
 HERE = Path(__file__).resolve().parent
 DESIGN = HERE.parent / 'DESIGN.md'
+DESIGN_REVISION_SHA256 = '6ae6d8ba3a0b16309a6812b939b156d3b33aec15d8e7e09246fa93520ea74b92'
 TEMPLATE = Path('/Users/rig/Documents/ChatGPT/3d printer/Claude/clawd-desk-pet/v10-peg-fit/plates/41-replacement-pegs-K3-v10.3mf')
 CAV_W, CAV_L, CAV_H, CAV_R = 20.2, 22.0, 12.0, .5
 WALL_SIDE, WALL_USB, FRONT, LID_T, OUT_R = 1.2, 1.8, 1.2, 2.0, 2.0
@@ -57,6 +58,9 @@ COLORS = {'case-front': (.19, .48, .65, 1), 'case-back': (.91, .64, .23, 1),
           'clip': (.24, .67, .48, 1)}
 EXPECTED = {'case-front': [22.6, 32.3, 15.2], 'case-back': [20.7, 23.7, 10.04],
             'clip': [12, 22, 5.5]}
+EXPECTED_BOUNDS = {'case-front': [(-11.3, 11.3), (-8.5, 23.8), (-15.2, 0)],
+                   'case-back': [(-10.35, 10.35), (.1, 23.8), (-15.2, -5.16)],
+                   'clip': [(-6, 6), (1, 23), (-19.8, -14.3)]}
 
 
 def sha(path):
@@ -394,11 +398,13 @@ def render_views(objects):
     render('clip-side.png', (100, 0, 0), include=['clip'])
     for obj in objects.values():
         obj.hide_render = False
-    return {'images_generated': sorted(p.name for p in (HERE/'previews').glob('*.png')),
+    return {'images_generated': ['assembly-front.png', 'assembly-back.png', 'exploded.png', 'exploded-back.png',
+                                 'print-layout.png', 'front-orthographic.png', 'front-inside.png', 'back-slot.png', 'clip-side.png'],
             'human_visual_review': 'pending; recorded separately after opening generated PNGs'}
 
 
 def main():
+    assert sha(DESIGN) == DESIGN_REVISION_SHA256, 'DESIGN.md changed: review and update source dimensions before rebuilding.'
     for folder in ('parts', 'previews'):
         (HERE/folder).mkdir(exist_ok=True)
     bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete(use_global=False)
@@ -471,9 +477,12 @@ def main():
         stats = mesh_stats(obj)
         print('QA', name, json.dumps(stats), flush=True)
         report['parts'][name] = {'assembly': stats, 'expected_assembly_dimensions_mm': EXPECTED[name]}
+        report['parts'][name]['expected_assembly_bounds_mm'] = EXPECTED_BOUNDS[name]
         assert stats['non_manifold_edges'] == 0 and stats['connected_components'] == 1, (name, stats)
         assert stats['volume_mm3'] > 0 and stats['degenerate_faces'] == 0, (name, stats)
         assert all(abs(a-b) < .01 for a, b in zip(stats['dimensions_mm'], EXPECTED[name])), (name, stats)
+        assert all(abs(a-b) < .01 for actual, expected in zip(stats['bounds_mm'], EXPECTED_BOUNDS[name])
+                   for a, b in zip(actual, expected)), (name, stats)
         vertices = print_vertices(obj, name)
         triangles = [tuple(p.vertices) for p in obj.data.polygons]
         path = HERE/'parts'/(name+'.stl')
@@ -483,6 +492,7 @@ def main():
         exported = mesh_stats(reread); bpy.data.objects.remove(reread, do_unlink=True)
         assert exported['non_manifold_edges'] == 0 and exported['connected_components'] == 1 and exported['volume_mm3'] > 0
         assert abs(exported['bounds_mm'][2][0]) < .00001
+        assert abs(exported['volume_mm3']-stats['volume_mm3']) < .01
         report['parts'][name].update({'print_stl': exported, 'stl_sha256': sha(path),
                                       'export_quantization_mm': 10**-EXPORT_DIGITS,
                                       'print_transform': {'case-front': '(-x, y+8.5, -z)', 'case-back': '(x, y-0.1, z+15.2)',
@@ -526,6 +536,18 @@ def main():
     assert all(v > 0 for values in (measured['near_root'], measured['near_tip']) for v in values.values())
     report['fits']['conduit_to_board_z_mm'] = BOARD_Z[1]-MIC_TIP if BOARD_Z[1] > MIC_TIP else MIC_TIP-BOARD_Z[1]
     report['fits']['conduit_to_nominal_microphone_z_mm'] = 1.5
+    def bore_diameter(x, y, z):
+        return ray_coordinate(front, (x, y, z), (1, 0, 0), 0)-ray_coordinate(front, (x, y, z), (-1, 0, 0), 0)
+    report['features_measured_final_mesh'] = {
+        'microphone': {'center_xy_mm': MIC_XY, 'bore_diameter_mm': bore_diameter(*MIC_XY, -.6),
+                       'conduit_tip_z_mm': ray_coordinate(front, (1, MIC_XY[1], -3), (0, 0, 1), 2)},
+        'pinhole_diameters_mm': [bore_diameter(x, PIN_Y, -.6) for x in PIN_X],
+        'LED_skin_thicknesses_mm': [-ray_coordinate(front, (x, LED_Y, -1), (0, 0, 1), 2) for x in LED_X],
+        'lanyard_hole_diameter_mm': bore_diameter(0, EAR_CY, -1.5),
+        'USB_ceiling_z_mm': ray_coordinate(front, (0, 23, -6), (0, 0, 1), 2),
+        'tongue_tip_z_mm': ray_coordinate(back, (0, 23, -5), (0, 0, -1), 2)}
+    assert abs(report['features_measured_final_mesh']['microphone']['bore_diameter_mm']-MIC_ID) < .01
+    assert all(abs(v-LED_SKIN) < .01 for v in report['features_measured_final_mesh']['LED_skin_thicknesses_mm'])
     report['native_3mf'] = native_project(parts)
     report['previews'] = render_views(objects)
     review_path = HERE/'visual-review.json'

@@ -20,6 +20,8 @@
 |---|---|
 | `firmware/` | 设备固件（Zephyr / nRF Connect SDK），见 [firmware/README.md](firmware/README.md) |
 | `android/` | 安卓 App（Kotlin + Compose）：蓝牙接收音频，每 5 分钟存一个 Ogg Opus 文件 |
+| `server/mailbox/` | 服务器信箱（FastAPI + Docker），只做中转 |
+| `mac/` | 家里 Mac 的取件程序：取录音 → 本地转写 → 回传文字，见 [docs/mac-worker-setup.md](docs/mac-worker-setup.md) |
 | `tools/` | 电脑端工具，比如 BLE 接收测试脚本 |
 | `docs/` | 部署和开发文档 |
 | `shopping-list.md` | 硬件购物清单 |
@@ -31,8 +33,13 @@
 - [x] 电池供电（402020）和电压检测
 - [ ] 续航测试
 - [ ] 静音检测（VAD），断连时存进 Flash 缓存
-- [ ] 安卓 App
-- [ ] 服务器信箱和 Mac 转写服务
+- [x] 安卓 App：接收、分段存储、波形播放、自动上传
+- [x] 服务器信箱（HTTPS）
+- [x] Mac 取件程序
+- [ ] Mac 本地转写服务（部署中）
+- [ ] 手机显示转写文字
+- [ ] 每晚总结
+- [ ] 端到端加密
 - [ ] 外壳
 
 ## 第三方代码

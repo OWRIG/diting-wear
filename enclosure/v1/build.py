@@ -67,6 +67,19 @@ def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def png_pixel_sha(path):
+    # Blender writes Date/RenderTime text chunks even without visible stamps.
+    # IHDR+IDAT identity proves the viewed image is unchanged across rebuilds.
+    data = path.read_bytes(); offset = 8; pixels = bytearray()
+    while offset < len(data):
+        size = struct.unpack_from('>I', data, offset)[0]
+        kind, payload = data[offset+4:offset+8], data[offset+8:offset+8+size]
+        if kind in (b'IHDR', b'IDAT'):
+            pixels.extend(kind); pixels.extend(payload)
+        offset += size+12
+    return hashlib.sha256(pixels).hexdigest()
+
+
 def dump(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
 
@@ -553,11 +566,13 @@ def main():
     review_path = HERE/'visual-review.json'
     if review_path.exists():
         review = json.loads(review_path.read_text())
-        valid = review.get('design_sha256') == sha(DESIGN) and all(
-            (HERE/'previews'/name).exists() and sha(HERE/'previews'/name) == digest
-            for name, digest in review.get('image_sha256', {}).items())
+        pixels = review.get('image_pixel_sha256', {})
+        valid = review.get('design_sha256') == sha(DESIGN) and len(pixels) == 9 and all(
+            (HERE/'previews'/name).exists() and png_pixel_sha(HERE/'previews'/name) == digest
+            for name, digest in pixels.items())
         if valid:
             report['previews']['human_visual_review'] = review
+            report['previews']['reviewed_png_pixels_match_current_files'] = True
     bpy.context.scene.render.filepath = str(HERE/'previews'/'assembly-front.png')
     bpy.context.preferences.filepaths.save_version = 0
     bpy.ops.wm.save_as_mainfile(filepath=str(HERE/'diting-case-v1.blend'))

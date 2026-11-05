@@ -42,5 +42,17 @@
     ],
     "limitations": "仅检查刀路与几何；未验证0.9mm侧向小台阶、桥接下垂、首层附着和PLA弹性等实物表现。"
   },
-  "physical_result_verified": false
+  "physical_result_verified": false,
+  "image_pixel_sha256": {
+    "assembly-back.png": "293812d8a8f7d98d0056d99e00f8489382d4366fa0260b511bd97c5805a10bd3",
+    "assembly-front.png": "0feb3c6eceb7dc9c31f08be06eea2f91a801296e4c056c8d0e78cd838d14949b",
+    "back-slot.png": "683d89813b2f4958d9fce35164bf965e198a5a8f969efa9e464a573b4cec9d88",
+    "clip-side.png": "8337afa141cf23e41c2de87df89534702860f0d42ca799323a9a19129720d840",
+    "exploded-back.png": "87be6008a2cc6d9e188bb26ba4d92beb20c666c24a2124ac263d9cc640f7f95c",
+    "exploded.png": "0b5d77aa3c13a9aef65d1d14084d2a8491b6f509a430c899cc73736243dc80eb",
+    "front-inside.png": "edaabeaa049f86a4d8673a1c2111f3b77b0d95604964fb704f614f5bdefc4db1",
+    "front-orthographic.png": "2202ce644d5806351b45bdf86047d181095e7ee0f9c46769768035f35a064b4c",
+    "print-layout.png": "83759a449abedd4d70e14410e91af501f7a8edb82e6affd6d9ff70204e333445"
+  },
+  "image_identity_method": "PNG IHDR+IDAT content; exclude Blender Date/RenderTime text metadata; originally viewed file hashes also retained."
 }

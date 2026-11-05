@@ -146,60 +146,87 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** 纯文字时间线：按天分组（新的一天在上），一天之内按时间顺序；点一句从那里开始播放 */
+    /**
+     * 纯文字时间线：按天分组（新的一天在上），一天之内按时间顺序。
+     * 同一个人、停顿不到 PARA_GAP_S 秒的连续几句合成一个段落，只在段首标时间，读起来更连贯。
+     * 点段落里任意一句，从那句开始播放。
+     */
     @Composable
     private fun TextTimeline(recs: List<Recording>) {
+        @Suppress("UNUSED_EXPRESSION") speakerVersion
         data class Line(val rec: Recording, val seg: Segment) {
-            val at = rec.start.plusNanos((seg.start * 1e9).toLong())
+            val at: java.time.LocalDateTime = rec.start.plusNanos((seg.start * 1e9).toLong())
+            val endAt: java.time.LocalDateTime = rec.start.plusNanos((seg.end * 1e9).toLong())
         }
+        class Para(val lines: MutableList<Line>, val who: String?)
+
         val lines = recs.flatMap { r ->
             Transcripts.get(this, r.name)?.segments?.filter { it.text.isNotBlank() }?.map { Line(r, it) } ?: emptyList()
+        }.sortedBy { it.at }
+        val paras = ArrayList<Para>()
+        for (l in lines) {
+            val who = Speakers.displayName(this, l.seg.speaker)
+            val last = paras.lastOrNull()
+            val gap = last?.let { java.time.Duration.between(it.lines.last().endAt, l.at).toMillis() / 1000.0 }
+            if (last != null && last.who == who && gap != null && gap < PARA_GAP_S &&
+                last.lines.first().at.toLocalDate() == l.at.toLocalDate()) {
+                last.lines.add(l)
+            } else {
+                paras.add(Para(mutableListOf(l), who))
+            }
         }
-        val byDay = lines.groupBy { it.at.toLocalDate() }.toSortedMap(compareByDescending { it })
+        val byDay = paras.groupBy { it.lines.first().at.toLocalDate() }.toSortedMap(compareByDescending { it })
         val playingName = player.current?.name
         val pos = player.positionMs / 1000.0
+
         LazyColumn(Modifier.fillMaxWidth()) {
             if (lines.isEmpty()) item {
                 Text("还没有转写出来的文字。录音上传后，家里的 Mac 转写完会自动出现在这里。",
                     Modifier.padding(vertical = 24.dp), color = MaterialTheme.colorScheme.outline)
             }
-            byDay.forEach { (day, dayLines) ->
+            byDay.forEach { (day, dayParas) ->
                 item(key = "d$day") {
                     Text(dayLabel(day), Modifier.padding(top = 16.dp, bottom = 6.dp),
                         style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 }
-                val sorted = dayLines.sortedBy { it.at }
-                items(sorted.size, key = { "${sorted[it].rec.name}#${sorted[it].seg.start}" }) { i ->
-                    val l = sorted[i]
-                    val active = l.rec.name == playingName && pos >= l.seg.start && pos < l.seg.end + 0.3
-                    val prev = sorted.getOrNull(i - 1)
-                    // 和上一句隔了 2 分钟以上，加一点空白，方便看出"一段对话"
-                    if (prev != null && java.time.Duration.between(prev.at, l.at).seconds > 120) {
-                        Spacer(Modifier.height(10.dp))
-                    }
-                    Row(
-                        Modifier.fillMaxWidth()
-                            .clickable {
+                items(dayParas.size, key = { "${dayParas[it].lines.first().rec.name}#${dayParas[it].lines.first().seg.start}" }) { i ->
+                    val p = dayParas[i]
+                    val first = p.lines.first()
+                    val prev = dayParas.getOrNull(i - 1)
+                    val showWho = p.who != null && p.who != prev?.who
+                    // 段落之间隔得久（超过 2 分钟），多留点空白
+                    val longBreak = prev != null &&
+                        java.time.Duration.between(prev.lines.last().endAt, first.at).seconds > 120
+                    Row(Modifier.fillMaxWidth().padding(top = if (longBreak) 14.dp else 6.dp, bottom = 2.dp)) {
+                        Text(first.at.format(T), Modifier.width(68.dp).padding(top = 3.dp),
+                            color = MaterialTheme.colorScheme.outline, fontSize = 12.sp)
+                        Column(Modifier.weight(1f)) {
+                            if (showWho) Text(p.who!!, fontSize = 12.sp, color = MaterialTheme.colorScheme.tertiary,
+                                fontWeight = FontWeight.Medium)
+                            // 段落里的每一句拼成一段文字，正在播放的那句高亮；点哪句从哪句播
+                            val text = androidx.compose.ui.text.buildAnnotatedString {
+                                p.lines.forEachIndexed { idx, l ->
+                                    val active = l.rec.name == playingName && pos >= l.seg.start && pos < l.seg.end + 0.3
+                                    pushStringAnnotation("line", idx.toString())
+                                    if (active) pushStyle(androidx.compose.ui.text.SpanStyle(
+                                        color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold))
+                                    append(l.seg.text.trim())
+                                    if (active) pop()
+                                    pop()
+                                }
+                            }
+                            @Suppress("DEPRECATION")
+                            androidx.compose.foundation.text.ClickableText(
+                                text, style = MaterialTheme.typography.bodyLarge.copy(
+                                    color = MaterialTheme.colorScheme.onSurface, lineHeight = 26.sp),
+                            ) { off ->
+                                val idx = text.getStringAnnotations("line", off, off).firstOrNull()?.item?.toInt() ?: 0
+                                val l = p.lines[idx]
                                 if (l.rec.hasAudio) {
                                     if (player.current?.name != l.rec.name) player.open(l.rec)
                                     player.seekTo((l.seg.start * 1000).toInt())
                                 }
                             }
-                            .padding(vertical = 5.dp),
-                    ) {
-                        Text(l.at.format(T), Modifier.width(68.dp),
-                            color = MaterialTheme.colorScheme.outline, fontSize = 12.sp)
-                        Column(Modifier.weight(1f)) {
-                            val who = Speakers.displayName(this@MainActivity, l.seg.speaker)
-                            val prevWho = prev?.let { Speakers.displayName(this@MainActivity, it.seg.speaker) }
-                            if (who != null && who != prevWho) {
-                                Text(who, fontSize = 12.sp, color = MaterialTheme.colorScheme.tertiary,
-                                    fontWeight = FontWeight.Medium)
-                            }
-                            Text(l.seg.text, style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
-                                color = if (active) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurface)
                         }
                     }
                 }
@@ -465,6 +492,7 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
+        private const val PARA_GAP_S = 3.0
         private val DT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         private val T = DateTimeFormatter.ofPattern("HH:mm:ss")
         private val HM = DateTimeFormatter.ofPattern("HH:mm")

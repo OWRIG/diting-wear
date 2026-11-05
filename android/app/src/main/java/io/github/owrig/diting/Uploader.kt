@@ -14,25 +14,36 @@ class Uploader(private val ctx: Context) {
     private val chunkDir = RecorderService.chunkDir(ctx)
     private val markDir = File(ctx.filesDir, "uploaded").apply { mkdirs() }
 
+    private val silentDir = File(ctx.filesDir, "novoice").apply { mkdirs() }
+
     fun isUploaded(f: File) = File(markDir, f.name).exists()
+    /** 这段录音没有人声，没有上传（录音本身照常在手机上保留 7 天） */
+    fun isSilent(f: File) = File(silentDir, f.name).exists()
 
     /** 上传所有还没上传的录音，返回 (成功数, 剩余数) */
     fun uploadPending(): Pair<Int, Int> {
         val cfg = Config.load(ctx) ?: return 0 to pending().size
         var ok = 0
         for (f in pending()) {
+            val speech = Vad.speechSeconds(ctx, f)
+            if (speech != null && speech < Vad.MIN_SPEECH_S) {
+                File(silentDir, f.name).createNewFile()
+                Log.i(TAG, "${f.name} 没有人声，不上传")
+                continue
+            }
             if (upload(cfg, f)) {
                 File(markDir, f.name).createNewFile()
                 ok++
             } else break                     // 网络不通就别一个个试了，等下一轮
         }
         markDir.listFiles()?.forEach { if (!File(chunkDir, it.name).exists()) it.delete() }
+        silentDir.listFiles()?.forEach { if (!File(chunkDir, it.name).exists()) it.delete() }
         return ok to pending().size
     }
 
     private fun pending() =
         (chunkDir.listFiles { f -> f.name.endsWith(".opus") } ?: emptyArray())
-            .filter { !isUploaded(it) }.sortedBy { it.name }
+            .filter { !isUploaded(it) && !isSilent(it) }.sortedBy { it.name }
 
     private fun upload(cfg: Config, f: File): Boolean = runCatching {
         val conn = URL("${cfg.serverUrl}/v1/audio/${f.name}").openConnection() as HttpURLConnection

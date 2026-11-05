@@ -20,8 +20,9 @@ android {
         applicationId = "io.github.owrig.diting"
         minSdk = 29
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.7.0"
+        versionCode = 9
+        versionName = "0.8.0"
+        ndk { abiFilters += listOf("arm64-v8a") }   // 只打包 64 位 ARM，安装包小很多
         buildConfigField("String", "DEFAULT_SERVER_URL", "\"${secrets.getProperty("SERVER_URL", "")}\"")
         buildConfigField("String", "DEFAULT_PHONE_TOKEN", "\"${secrets.getProperty("PHONE_TOKEN", "")}\"")
     }
@@ -46,6 +47,8 @@ dependencies {
     implementation(composeBom)
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+    // 手机上判断有没有人声（Silero VAD 模型在 assets/ 里，MIT 许可）
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.31.1")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.activity:activity-compose:1.9.3")

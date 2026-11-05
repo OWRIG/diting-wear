@@ -20,7 +20,8 @@ class RecorderService : Service() {
 
     private lateinit var ble: BleLink
     private lateinit var chunks: ChunkRecorder
-    private val io = Executors.newSingleThreadScheduledExecutor()   // 所有文件操作都在这个线程
+    private val io = Executors.newSingleThreadScheduledExecutor()   // 写录音文件都在这个线程
+    private val net = Executors.newSingleThreadScheduledExecutor()  // 判断人声、上传、取文字（比较慢，不能挡住写录音）
     private var wakeLock: PowerManager.WakeLock? = null
     private var bytesThisSecond = 0
     private lateinit var uploader: Uploader
@@ -68,7 +69,7 @@ class RecorderService : Service() {
         // 每小时清理一次 7 天前的录音
         io.scheduleAtFixedRate({ Recordings.cleanup(chunkDir(this)) }, 0, 1, TimeUnit.HOURS)
         // 每分钟检查一次有没有录好但还没上传的文件
-        io.scheduleWithFixedDelay({
+        net.scheduleWithFixedDelay({
             val (ok, left) = uploader.uploadPending()
             val got = Transcripts.pull(this)
             Speakers.pull(this)
@@ -97,6 +98,7 @@ class RecorderService : Service() {
     override fun onDestroy() {
         ble.stop()
         io.execute { chunks.closeChunk() }
+        net.shutdownNow()
         io.shutdown()
         io.awaitTermination(2, TimeUnit.SECONDS)
         wakeLock?.release()

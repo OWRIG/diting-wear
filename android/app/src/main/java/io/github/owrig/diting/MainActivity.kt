@@ -864,6 +864,7 @@ class MainActivity : ComponentActivity() {
     private fun statusLabel(r: Recording, tr: Transcript?): String = when {
         tr != null -> "已转写"
         !r.hasAudio -> "录音已过期"
+        uploader.isSilent(r.file) -> "没有人声，未上传"
         uploader.isUploaded(r.file) -> "等待转写"
         else -> "待上传"
     }

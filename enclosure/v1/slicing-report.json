@@ -1,0 +1,189 @@
+{
+  "stage": "sliced",
+  "slicer": "Creality_Print V7.3.1.6378",
+  "project": "diting-case-v1-K3.3mf",
+  "project_sha256": "8c32a4324b7b4c50632ef5eeeee2f2aebba3bbc1544705d06f198a86b0ee8536",
+  "gcode": "diting-case-v1-K3.gcode",
+  "gcode_sha256": "fd48bdf66885aa2e589a64dfab4840e2c3d96a8cd70ec08714de8051667543b6",
+  "geometry_report_sha256": "029ca4d8623f30be7af05aa290e0180f3ff54d0f2e1c267c6d5ebf8ef68be4e1",
+  "invocation": {
+    "command": [
+      "/Applications/Creality Print.app/Contents/MacOS/CrealityPrint",
+      "--cli",
+      "--slice",
+      "1",
+      "--need-gcode-file",
+      "--outputdir",
+      "/Users/rig/personal/record/enclosure/v1/sliced",
+      "/Users/rig/personal/record/enclosure/v1/diting-case-v1-K3.3mf"
+    ],
+    "extra_environment_variables": {},
+    "cwd": "/Users/rig/personal/record/enclosure/v1",
+    "started_utc": "2026-11-05T17:52:38.380812+00:00",
+    "project_sha256": "8c32a4324b7b4c50632ef5eeeee2f2aebba3bbc1544705d06f198a86b0ee8536",
+    "machine_actions_performed_by_agent": false,
+    "exit_code": 0,
+    "elapsed_seconds": 2.009759375,
+    "gcode_exists": true,
+    "gcode_sha256": "fd48bdf66885aa2e589a64dfab4840e2c3d96a8cd70ec08714de8051667543b6"
+  },
+  "machine": "Creality K3",
+  "nozzle_diameter_mm": [
+    "0.4",
+    "0.4",
+    "0.4",
+    "0.4"
+  ],
+  "material": [
+    "Hyper PLA @Creality K3"
+  ],
+  "bed_type": "Textured PEI Plate",
+  "estimated_printing_time": "23m 37s",
+  "estimated_printing_time_seconds": 1417,
+  "filament_used_g": 4.7,
+  "filament_used_mm": 1575.93,
+  "filament_used_cm3": 3.79,
+  "layer_count": 95,
+  "actual_layer_height_range_mm": [
+    0.16,
+    0.160001
+  ],
+  "effective_settings_from_gcode": {
+    "layer_height": "0.16",
+    "initial_layer_print_height": "0.16",
+    "wall_loops": "3",
+    "sparse_infill_density": "100%",
+    "enable_support": "0",
+    "brim_type": "no_brim",
+    "brim_width": "0",
+    "skirt_loops": "0",
+    "enable_prime_tower": "0"
+  },
+  "native_object_overrides": {
+    "case-front": {
+      "layer_height": "0.16",
+      "initial_layer_print_height": "0.16",
+      "wall_loops": "3",
+      "sparse_infill_density": "100%",
+      "enable_support": "0",
+      "brim_type": "no_brim",
+      "brim_width": "0",
+      "skirt_loops": "0",
+      "enable_prime_tower": "0"
+    },
+    "case-back": {
+      "layer_height": "0.16",
+      "initial_layer_print_height": "0.16",
+      "wall_loops": "3",
+      "sparse_infill_density": "100%",
+      "enable_support": "0",
+      "brim_type": "no_brim",
+      "brim_width": "0",
+      "skirt_loops": "0",
+      "enable_prime_tower": "0"
+    },
+    "clip": {
+      "layer_height": "0.16",
+      "initial_layer_print_height": "0.16",
+      "wall_loops": "3",
+      "sparse_infill_density": "100%",
+      "enable_support": "0",
+      "brim_type": "no_brim",
+      "brim_width": "0",
+      "skirt_loops": "0",
+      "enable_prime_tower": "0"
+    }
+  },
+  "different_settings_to_system_contains_all_overrides": true,
+  "toolpath_checks": {
+    "features_extrusion_commands": {
+      "Inner wall": 3087,
+      "Outer wall": 4572,
+      "Gap infill": 4284,
+      "Bottom surface": 311,
+      "Internal solid infill": 3520,
+      "Top surface": 322,
+      "Overhang wall": 11,
+      "Bridge": 113
+    },
+    "features_path_length_mm": {
+      "Inner wall": 9641.420861637784,
+      "Outer wall": 24485.085650961722,
+      "Gap infill": 10046.47080715879,
+      "Bottom surface": 1072.0029038301843,
+      "Internal solid infill": 13586.232967426711,
+      "Top surface": 2605.497579426564,
+      "Overhang wall": 60.227999999999966,
+      "Bridge": 573.3420689086466
+    },
+    "forbidden_feature_extrusion": {},
+    "all_model_extrusion_within_part_bounds": true,
+    "objects": {
+      "case-front": {
+        "layers_with_extrusion": 95,
+        "first_extrusion_z_mm": 0.16,
+        "last_extrusion_z_mm": 15.2,
+        "xy_centerline_bounds_mm": [
+          [
+            82.91,
+            105.09
+          ],
+          [
+            100.21036938485175,
+            132.09
+          ]
+        ]
+      },
+      "case-back": {
+        "layers_with_extrusion": 63,
+        "first_extrusion_z_mm": 0.16,
+        "last_extrusion_z_mm": 10.08,
+        "xy_centerline_bounds_mm": [
+          [
+            111.888,
+            132.112
+          ],
+          [
+            100.20979391282074,
+            123.49
+          ]
+        ]
+      },
+      "clip": {
+        "layers_with_extrusion": 75,
+        "first_extrusion_z_mm": 0.16,
+        "last_extrusion_z_mm": 12.0,
+        "xy_centerline_bounds_mm": [
+          [
+            144.31,
+            149.311
+          ],
+          [
+            100.21,
+            121.811
+          ]
+        ]
+      }
+    },
+    "bridge_layers": [
+      [
+        "case-back",
+        1.12
+      ]
+    ],
+    "arc_commands_decoded": 3332,
+    "positive_extrusion_segments_decoded": 70325,
+    "support_present": false,
+    "brim_present": false,
+    "skirt_present": false,
+    "prime_tower_present": false,
+    "startup_positive_E_mm": 16.870999999999995,
+    "startup_note": "Inherited K3 startup includes a purge line at Y=0. It is not model support or brim.",
+    "method": "global + object + dirty-key + G-code settings; all positive model extrusion decoded including I/J arcs; typed feature and spatial checks"
+  },
+  "preview_review": "pending; see visual-review.json after inspection",
+  "machine_actions_performed_by_agent": false,
+  "physical_result_verified": false,
+  "verification_command": "python3 enclosure/v1/verify_slicing.py",
+  "extra_environment_variables": {}
+}

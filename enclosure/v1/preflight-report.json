@@ -1,0 +1,123 @@
+{
+  "stage": "blocked_design_conflict",
+  "unit": "millimeter",
+  "method": "Analytical checks of the supplied design; no modeled mesh exists.",
+  "design": {
+    "path": "/Users/rig/personal/record/enclosure/DESIGN.md",
+    "sha256": "a8bfab6c878dc48dab19031c0c110b51d0101ea1355a9dab64e8b820aec00350"
+  },
+  "template": {
+    "path": "/Users/rig/Documents/ChatGPT/3d printer/Claude/clawd-desk-pet/v10-peg-fit/plates/41-replacement-pegs-K3-v10.3mf",
+    "zip_crc_valid": true,
+    "sha256": "0b8c8ea55097ec87088a00739f86a9e108f29be9f3032f0429337e0564f50859",
+    "machine": "Creality K3",
+    "filament": [
+      "Hyper PLA @Creality K3"
+    ]
+  },
+  "blockers": [
+    {
+      "id": "disconnected_usb_tongue",
+      "design_lines": [
+        70,
+        71
+      ],
+      "plate_y_mm": [
+        0.1,
+        21.9
+      ],
+      "tongue_y_mm": [
+        22.0,
+        23.8
+      ],
+      "separation_mm": 0.1,
+      "result": "盖板与舌片不相接；按原尺寸后盖至少两个实体，不能满足连通体为 1。",
+      "verification": "解析区间检查；不是网格实测。"
+    },
+    {
+      "id": "requested_board_envelope_intersects_conduit",
+      "design_lines": [
+        15,
+        50,
+        51,
+        52,
+        61
+      ],
+      "board_bounds_xyz_mm": [
+        [
+          -9.8,
+          9.8
+        ],
+        [
+          0.25,
+          21.75
+        ],
+        [
+          -13.2,
+          -1.5999999999999996
+        ]
+      ],
+      "conduit_center_xy_mm": [
+        0.0,
+        5.65
+      ],
+      "conduit_outer_inner_radius_mm": [
+        1.4,
+        0.75
+      ],
+      "conduit_bounds_z_mm": [
+        -3.0,
+        -1.2
+      ],
+      "overlap_bounds_z_mm": [
+        -3.0,
+        -1.5999999999999996
+      ],
+      "overlap_volume_mm3": 6.146526027,
+      "formula": "pi * (1.4**2 - 0.75**2) * 1.4",
+      "result": "前壳导声管侵入指定矩形包络盒；不等于已证明实际元件干涉。",
+      "verification": "理想圆环柱与矩形包络的解析计算；不是布尔网格实测。"
+    },
+    {
+      "id": "side_print_dovetail_starts_in_air",
+      "design_lines": [
+        78,
+        80,
+        85,
+        93,
+        95
+      ],
+      "exact_transform": "(x,y,z) -> (z,y,6-x), plus XY translation",
+      "root_width_mm": 5.7,
+      "tip_width_mm": 7.3,
+      "head_first_print_z_mm": 2.35,
+      "root_first_print_z_mm": 3.15,
+      "unattached_start_height_mm": 0.8,
+      "example_section_print_z_mm": 2.7,
+      "example_section_gap_to_base_in_print_x_mm": 0.50625,
+      "example_section_tongue_print_x_mm": [
+        -14.69375,
+        -14.3
+      ],
+      "result": "侧放时燕尾凸头先于根部出现，初始截面与底板分离，无法保证无支撑成形。",
+      "verification": "精确轴置换后的截面解析检查；未运行切片器。"
+    }
+  ],
+  "additional_dimension_note": {
+    "dovetail_root_side_gap_mm": 0.15,
+    "groove_width_at_tongue_top_mm": 7.44,
+    "dovetail_top_side_gap_mm": 0.07,
+    "note": "线性截面假设下间隙为正，但顶端每侧 0.07，并非文字所述的全程 0.15。"
+  },
+  "modeling_performed": false,
+  "mesh_validation_performed": false,
+  "blender_invoked": false,
+  "slicer_invoked": false,
+  "estimated_time_seconds": null,
+  "estimated_filament_g": null,
+  "machine_actions_performed_by_agent": false,
+  "physical_result_verified": false,
+  "command": "python3 enclosure/v1/preflight.py",
+  "extra_environment_variables": {},
+  "expected_exit_code": 2
+}

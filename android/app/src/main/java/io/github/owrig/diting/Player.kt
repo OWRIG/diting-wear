@@ -19,6 +19,7 @@ class Player {
         private set
 
     fun open(r: Recording) {
+        if (!r.hasAudio) return
         release()
         current = r
         mp = MediaPlayer().apply {

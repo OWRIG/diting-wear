@@ -7,8 +7,10 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentHashMap
 
-/** 一段录音：文件名就是开始时间（yyyyMMdd-HHmmss.opus） */
+/** 一段录音：文件名就是开始时间（yyyyMMdd-HHmmss.opus）。音频可能已经过期删除，只剩文字。 */
 data class Recording(val file: File, val start: LocalDateTime, val durationSec: Double) {
+    val name: String get() = file.name
+    val hasAudio: Boolean get() = file.exists()
     val end: LocalDateTime get() = start.plusSeconds(durationSec.toLong())
 }
 
@@ -20,15 +22,19 @@ object Recordings {
     fun parseStart(f: File): LocalDateTime? =
         runCatching { LocalDateTime.parse(f.name.removeSuffix(".opus"), NAME_FMT) }.getOrNull()
 
-    /** 列出所有已完成的录音，新的在前 */
-    fun list(dir: File): List<Recording> =
-        (dir.listFiles { f -> f.name.endsWith(".opus") } ?: emptyArray())
-            .mapNotNull { f ->
-                val start = parseStart(f) ?: return@mapNotNull null
-                val dur = durationCache.getOrPut("${f.name}:${f.length()}") { oggDurationSec(f) }
-                Recording(f, start, dur)
-            }
-            .sortedByDescending { it.start }
+    /** 列出所有录音（含只剩文字的），新的在前 */
+    fun list(ctx: android.content.Context): List<Recording> {
+        val dir = RecorderService.chunkDir(ctx)
+        val audio = (dir.listFiles { f -> f.name.endsWith(".opus") } ?: emptyArray()).map { it.name }
+        val names = (audio + Transcripts.allNames(ctx)).toSortedSet()
+        return names.mapNotNull { name ->
+            val f = File(dir, name)
+            val start = parseStart(f) ?: return@mapNotNull null
+            val dur = if (f.exists()) durationCache.getOrPut("${f.name}:${f.length()}") { oggDurationSec(f) }
+                      else Transcripts.get(ctx, name)?.durationSec ?: 0.0
+            Recording(f, start, dur)
+        }.sortedByDescending { it.start }
+    }
 
     /** 删除 RETENTION_DAYS 天之前的录音（按自然日：今天 + 前 6 天保留） */
     fun cleanup(dir: File, today: LocalDate = LocalDate.now()) {

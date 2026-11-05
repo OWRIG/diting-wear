@@ -65,7 +65,9 @@ class RecorderService : Service() {
         // 每分钟检查一次有没有录好但还没上传的文件
         io.scheduleWithFixedDelay({
             val (ok, left) = uploader.uploadPending()
-            AppState.update { it.copy(pendingUploads = left, uploadedThisSession = it.uploadedThisSession + ok) }
+            val got = Transcripts.pull(this)
+            AppState.update { it.copy(pendingUploads = left, uploadedThisSession = it.uploadedThisSession + ok,
+                textVersion = it.textVersion + got) }
         }, 5, 60, TimeUnit.SECONDS)
     }
 

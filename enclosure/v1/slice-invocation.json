@@ -1,0 +1,21 @@
+{
+  "command": [
+    "/Applications/Creality Print.app/Contents/MacOS/CrealityPrint",
+    "--cli",
+    "--slice",
+    "1",
+    "--need-gcode-file",
+    "--outputdir",
+    "/Users/rig/personal/record/enclosure/v1/sliced",
+    "/Users/rig/personal/record/enclosure/v1/diting-case-v1-K3.3mf"
+  ],
+  "extra_environment_variables": {},
+  "cwd": "/Users/rig/personal/record/enclosure/v1",
+  "started_utc": "2026-11-05T17:52:38.380812+00:00",
+  "project_sha256": "8c32a4324b7b4c50632ef5eeeee2f2aebba3bbc1544705d06f198a86b0ee8536",
+  "machine_actions_performed_by_agent": false,
+  "exit_code": 0,
+  "elapsed_seconds": 2.009759375,
+  "gcode_exists": true,
+  "gcode_sha256": "fd48bdf66885aa2e589a64dfab4840e2c3d96a8cd70ec08714de8051667543b6"
+}

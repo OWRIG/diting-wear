@@ -1,0 +1,43 @@
+[2026-11-06 01:52:38.508850] [0x00000001f8013f80] [trace]   Initializing StaticPrintConfigs
+[2026-11-06 01:52:38.566820] [0x00000001f8013f80] [error]   main start
+[2026-11-06 01:52:38.567057] [0x00000001f8013f80] [error]   main check linux
+[2026-11-06 01:52:39.690539] [0x00000001f8013f80] [error]   operator(): The config /Users/rig/Library/Application Support/Creality/Creality Print/7.3/system/Creality/machine/Creality K3.json contains incorrect keys: wait_for_temperature_after_toolchange, which were removed
+[2026-11-06 01:52:39.767259] [0x00000001f8013f80] [error]   process start memory info 
+[2026-11-06 01:52:39.767505] [0x00000001f8013f80] [error]   process: this=0x77d32c4000, enter, use_cache=0, object size=3
+[2026-11-06 01:52:39.768086] [0x00000001f8013f80] [error]   make_perimeters start memory info 
+[2026-11-06 01:52:39.784349] [0x00000001f8013f80] [error]   Generating walls...
+[2026-11-06 01:52:39.784377] [0x00000001f8013f80] [error]   Generating perimeters in parallel - start
+[2026-11-06 01:52:39.849560] [0x00000001f8013f80] [error]   Generating perimeters in parallel - end  memory info ;
+[2026-11-06 01:52:39.849596] [0x00000001f8013f80] [error]   make_perimeters start memory info 
+[2026-11-06 01:52:39.851470] [0x00000001f8013f80] [error]   Generating walls...
+[2026-11-06 01:52:39.851485] [0x00000001f8013f80] [error]   Generating perimeters in parallel - start
+[2026-11-06 01:52:39.854721] [0x00000001f8013f80] [error]   Generating perimeters in parallel - end  memory info ;
+[2026-11-06 01:52:39.854743] [0x00000001f8013f80] [error]   make_perimeters start memory info 
+[2026-11-06 01:52:39.858424] [0x00000001f8013f80] [error]   Generating walls...
+[2026-11-06 01:52:39.858443] [0x00000001f8013f80] [error]   Generating perimeters in parallel - start
+[2026-11-06 01:52:39.874487] [0x00000001f8013f80] [error]   Generating perimeters in parallel - end  memory info ;
+[2026-11-06 01:52:39.911734] [0x00000001f8013f80] [error]   Filling layers in parallel - start
+[2026-11-06 01:52:39.937173] [0x00000001f8013f80] [error]   Filling layers in parallel - end
+[2026-11-06 01:52:39.938729] [0x00000001f8013f80] [error]   Filling layers in parallel - start
+[2026-11-06 01:52:39.945649] [0x00000001f8013f80] [error]   Filling layers in parallel - end
+[2026-11-06 01:52:39.946733] [0x00000001f8013f80] [error]   Filling layers in parallel - start
+[2026-11-06 01:52:39.947322] [0x00000001f8013f80] [error]   Filling layers in parallel - end
+[2026-11-06 01:52:39.947411] [0x00000001f8013f80] [error]   generate_support_material start memory info 
+[2026-11-06 01:52:39.966316] [0x00000001f8013f80] [error]   generate_support_material end memory info 
+[2026-11-06 01:52:39.986026] [0x00000001f8013f80] [error]   process end memory info 
+[2026-11-06 01:52:39.986137] [0x00000001f8013f80] [error]   export_gcode start 
+[2026-11-06 01:52:39.986323] [0x00000001f8013f80] [error]   do_export start  export path /Users/rig/personal/record/enclosure/v1/sliced/plate_1.gcode
+[2026-11-06 01:52:39.986337] [0x00000001f8013f80] [error]   Will export G-code to /Users/rig/personal/record/enclosure/v1/sliced/plate_1.gcode soon
+[2026-11-06 01:52:39.986386] [0x00000001f8013f80] [error]   Exporting G-code...
+[2026-11-06 01:52:39.986538] [0x00000001f8013f80] [error]   [PERF_TIMING] GCODE_GENERATE START
+[2026-11-06 01:52:39.986546] [0x00000001f8013f80] [error]   _do_export start
+[2026-11-06 01:52:40.325932] [0x00000001f8013f80] [error]   _do_export end
+[2026-11-06 01:52:40.326132] [0x00000001f8013f80] [error]   Start processing gcode, 
+[2026-11-06 01:52:40.326142] [0x00000001f8013f80] [error]   [PERF_TIMING] GCODE_GENERATE END elapsed=339ms
+[2026-11-06 01:52:40.326148] [0x00000001f8013f80] [error]   [PERF_TIMING] GCODE_PROCESSING START
+[2026-11-06 01:52:40.339612] [0x00000001f8013f80] [error]   Finished processing gcode to /Users/rig/personal/record/enclosure/v1/sliced/plate_1.gcode.tmp 
+[2026-11-06 01:52:40.339709] [0x00000001f8013f80] [error]   rename_file from /Users/rig/personal/record/enclosure/v1/sliced/plate_1.gcode.tmp to /Users/rig/personal/record/enclosure/v1/sliced/plate_1.gcode successfully
+[2026-11-06 01:52:40.339728] [0x00000001f8013f80] [error]   [PERF_TIMING] GCODE_PROCESSING END elapsed=13ms
+[2026-11-06 01:52:40.339734] [0x00000001f8013f80] [error]   Exporting G-code finished
+[2026-11-06 01:52:40.339738] [0x00000001f8013f80] [error]   do_export end
+[2026-11-06 01:52:40.339744] [0x00000001f8013f80] [error]   export_gcode end

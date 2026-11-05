@@ -24,6 +24,7 @@ data class Status(
     val message: String? = null,
     val pendingUploads: Int = 0,
     val uploadedThisSession: Int = 0,
+    val textVersion: Int = 0,
 )
 
 /** 服务和界面之间共享的状态 */

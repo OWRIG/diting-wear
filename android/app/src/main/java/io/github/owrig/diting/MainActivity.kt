@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -80,12 +81,19 @@ class MainActivity : ComponentActivity() {
         var whitelisted by remember { mutableStateOf(isBatteryWhitelisted()) }
         LaunchedEffect(Unit) {
             while (true) {
-                recs = Recordings.list(RecorderService.chunkDir(this@MainActivity))
+                recs = Recordings.list(this@MainActivity)
                 whitelisted = isBatteryWhitelisted()
                 delay(3000)
             }
         }
         LaunchedEffect(Unit) { while (true) { player.tick(); delay(200) } }
+        // App 在前台时每 30 秒取一次文字（录音服务在跑时它也会每分钟取）
+        LaunchedEffect(Unit) {
+            while (true) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Transcripts.pull(this@MainActivity) }
+                delay(30_000)
+            }
+        }
 
         Scaffold(bottomBar = { if (player.current != null) PlayerBar() }) { pad ->
             Column(Modifier.padding(pad).padding(horizontal = 16.dp).fillMaxSize()) {
@@ -131,7 +139,7 @@ class MainActivity : ComponentActivity() {
                     style = MaterialTheme.typography.bodySmall)
                 if (s.currentChunk != null && s.link == LinkState.STREAMING) {
                     val start = Recordings.parseStart(java.io.File(s.currentChunk))
-                    Text("当前片段 ${start?.format(HM) ?: ""} 起，已录 ${fmtDuration(s.currentChunkSeconds)}",
+                    Text("当前片段 ${start?.format(DT) ?: ""} 起，已录 ${fmtDuration(s.currentChunkSeconds)}",
                         style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -141,6 +149,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun RecordingList(recs: List<Recording>) {
         val byDay = recs.groupBy { it.start.toLocalDate() }
+        var expanded by remember { mutableStateOf<String?>(null) }
         LazyColumn(Modifier.fillMaxWidth()) {
             if (recs.isEmpty()) item {
                 Text("还没有录音", Modifier.padding(vertical = 24.dp),
@@ -159,26 +168,39 @@ class MainActivity : ComponentActivity() {
                 }
                 items(list, key = { it.file.name }) { r ->
                     val selected = player.current?.file == r.file
+                    val tr = Transcripts.get(this@MainActivity, r.name)
                     var wave by remember(r.file.name) { mutableStateOf(Waveforms.cached(r.file)) }
-                    LaunchedEffect(r.file.name) { if (wave == null) wave = Waveforms.get(r.file) }
+                    LaunchedEffect(r.file.name) { if (wave == null && r.hasAudio) wave = Waveforms.get(r.file) }
                     Column(
                         Modifier.fillMaxWidth()
                             .background(if (selected) MaterialTheme.colorScheme.secondaryContainer
                                         else MaterialTheme.colorScheme.surface)
-                            .clickable { player.open(r) }
+                            .clickable { if (r.hasAudio) player.open(r) else expanded = if (expanded == r.name) null else r.name }
                             .padding(vertical = 10.dp, horizontal = 4.dp),
                     ) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("${r.start.format(HM)} – ${r.end.format(HM)}", fontSize = 16.sp)
-                            Row {
-                                Text(if (uploader.isUploaded(r.file)) "已上传 · " else "待上传 · ",
-                                    color = MaterialTheme.colorScheme.outline, fontSize = 13.sp)
-                                Text(fmtDuration(r.durationSec), color = MaterialTheme.colorScheme.outline)
+                            Text(r.start.format(DT), fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                            Text(fmtDuration(r.durationSec), color = MaterialTheme.colorScheme.outline)
+                        }
+                        Text("至 ${r.end.format(DT)} · ${statusLabel(r, tr)}",
+                            color = MaterialTheme.colorScheme.outline, fontSize = 12.sp)
+                        if (r.hasAudio) {
+                            Spacer(Modifier.height(6.dp))
+                            Waveform(wave, Modifier.fillMaxWidth().height(24.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
+                        }
+                        if (tr != null && tr.text.isNotBlank()) {
+                            Spacer(Modifier.height(6.dp))
+                            if (expanded == r.name) {
+                                tr.segments.forEach { seg ->
+                                    Text("${r.start.plusSeconds(seg.start.toLong()).format(T)}  ${seg.text}",
+                                        style = MaterialTheme.typography.bodyMedium)
+                                }
+                            } else {
+                                Text(tr.text, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.bodyMedium)
                             }
                         }
-                        Spacer(Modifier.height(6.dp))
-                        Waveform(wave, Modifier.fillMaxWidth().height(24.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
                     }
                     HorizontalDivider()
                 }
@@ -194,8 +216,11 @@ class MainActivity : ComponentActivity() {
         Surface(tonalElevation = 6.dp, shadowElevation = 6.dp) {
             Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp, 8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("${dayLabel(r.start.toLocalDate())} ${r.start.format(HM)} – ${r.end.format(HM)}",
-                        Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                    Column(Modifier.weight(1f)) {
+                        Text(r.start.format(DT), style = MaterialTheme.typography.titleSmall)
+                        Text("正在播放 " + r.start.plusSeconds((player.positionMs / 1000).toLong()).format(DT),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    }
                     TextButton(onClick = { player.close() }) { Text("关闭") }
                 }
                 val dur = player.durationMs.coerceAtLeast(1)
@@ -212,6 +237,7 @@ class MainActivity : ComponentActivity() {
                     onSeek = { player.seekTo((it * dur).toInt()); dragging = null },
                 )
                 Spacer(Modifier.height(4.dp))
+                TranscriptPane(r)
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     val shown = dragging?.let { (it * dur).toInt() } ?: player.positionMs
                     Text(fmtMs(shown), style = MaterialTheme.typography.bodySmall)
@@ -230,7 +256,42 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** 播放栏里的逐句文字：显示每句话的实际时刻，正在播放的那句高亮，点一下跳过去 */
+    @Composable
+    private fun TranscriptPane(r: Recording) {
+        val tr = Transcripts.get(this, r.name) ?: return
+        if (tr.segments.isEmpty()) return
+        val pos = player.positionMs / 1000.0
+        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+        val cur = tr.segments.indexOfLast { it.start <= pos + 0.2 }
+        LaunchedEffect(cur) { if (cur >= 0) listState.animateScrollToItem(maxOf(0, cur - 1)) }
+        LazyColumn(Modifier.fillMaxWidth().heightIn(max = 180.dp), state = listState) {
+            items(tr.segments.size) { i ->
+                val seg = tr.segments[i]
+                val active = i == cur
+                Row(Modifier.fillMaxWidth().clickable { player.seekTo((seg.start * 1000).toInt()) }
+                    .padding(vertical = 4.dp)) {
+                    Text(r.start.plusSeconds(seg.start.toLong()).format(T),
+                        color = MaterialTheme.colorScheme.outline, fontSize = 12.sp,
+                        modifier = Modifier.width(64.dp))
+                    Text(seg.text, style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                        color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                }
+            }
+        }
+    }
+
+    private fun statusLabel(r: Recording, tr: Transcript?): String = when {
+        tr != null -> "已转写"
+        !r.hasAudio -> "录音已过期"
+        uploader.isUploaded(r.file) -> "等待转写"
+        else -> "待上传"
+    }
+
     companion object {
+        private val DT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        private val T = DateTimeFormatter.ofPattern("HH:mm:ss")
         private val HM = DateTimeFormatter.ofPattern("HH:mm")
         private val MD = DateTimeFormatter.ofPattern("M月d日")
 

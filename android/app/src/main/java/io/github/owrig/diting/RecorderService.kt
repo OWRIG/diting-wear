@@ -24,6 +24,7 @@ class RecorderService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var bytesThisSecond = 0
     private lateinit var uploader: Uploader
+    private var started = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -60,6 +61,10 @@ class RecorderService : Service() {
                     currentChunkSeconds = chunks.currentSeconds)
             }
         }, 1, 1, TimeUnit.SECONDS)
+        // 录音时每 5 分钟记一次位置（只存在手机上）
+        io.scheduleWithFixedDelay({
+            if (AppState.status.value.link == LinkState.STREAMING) Places.requestFix(this)
+        }, 10, 300, TimeUnit.SECONDS)
         // 每小时清理一次 7 天前的录音
         io.scheduleAtFixedRate({ Recordings.cleanup(chunkDir(this)) }, 0, 1, TimeUnit.HOURS)
         // 每分钟检查一次有没有录好但还没上传的文件
@@ -78,6 +83,9 @@ class RecorderService : Service() {
             return START_NOT_STICKY
         }
         startForegroundCompat()
+        // 刚给了定位权限：只需要重新声明前台服务类型，蓝牙不用重连
+        if (intent?.action == ACTION_REFRESH && started) { Places.requestFix(this); return START_STICKY }
+        started = true
         if (wakeLock == null) {
             wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
                 .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "diting:recorder").apply { acquire() }
@@ -103,7 +111,11 @@ class RecorderService : Service() {
             NotificationChannel(CHANNEL, "录音状态", NotificationManager.IMPORTANCE_LOW))
         val n = buildNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+            // 有定位权限时同时声明 location 类型，这样后台也能定位；从后台被系统重启时不允许，就退回只用蓝牙类型
+            val base = ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+            val withLoc = if (Places.hasPermission(this)) base or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION else base
+            runCatching { startForeground(NOTIF_ID, n, withLoc) }
+                .onFailure { startForeground(NOTIF_ID, n, base) }
         } else {
             startForeground(NOTIF_ID, n)
         }
@@ -115,7 +127,7 @@ class RecorderService : Service() {
             PendingIntent.FLAG_IMMUTABLE)
         val text = buildString {
             append(s.link.label)
-            s.batteryMv?.let { append(" · 电池 %.2fV".format(it / 1000.0)) }
+            s.batteryMv?.let { append(" · 电量 ${MainActivity.batteryPct(it)}%") }
         }
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_launcher)
@@ -132,6 +144,7 @@ class RecorderService : Service() {
 
     companion object {
         const val ACTION_STOP = "stop"
+        const val ACTION_REFRESH = "refresh"
         private const val CHANNEL = "recorder"
         private const val NOTIF_ID = 1
         fun chunkDir(ctx: Context) = File(ctx.filesDir, "chunks")

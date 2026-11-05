@@ -40,6 +40,20 @@
         32.3,
         15.2
       ],
+      "expected_assembly_bounds_mm": [
+        [
+          -11.3,
+          11.3
+        ],
+        [
+          -8.5,
+          23.8
+        ],
+        [
+          -15.2,
+          0
+        ]
+      ],
       "print_stl": {
         "bounds_mm": [
           [
@@ -104,6 +118,20 @@
         23.7,
         10.04
       ],
+      "expected_assembly_bounds_mm": [
+        [
+          -10.35,
+          10.35
+        ],
+        [
+          0.1,
+          23.8
+        ],
+        [
+          -15.2,
+          -5.16
+        ]
+      ],
       "print_stl": {
         "bounds_mm": [
           [
@@ -167,6 +195,20 @@
         12,
         22,
         5.5
+      ],
+      "expected_assembly_bounds_mm": [
+        [
+          -6,
+          6
+        ],
+        [
+          1,
+          23
+        ],
+        [
+          -19.8,
+          -14.3
+        ]
       ],
       "print_stl": {
         "bounds_mm": [
@@ -337,6 +379,27 @@
   ],
   "machine_actions_performed_by_agent": false,
   "physical_result_verified": false,
+  "features_measured_final_mesh": {
+    "microphone": {
+      "center_xy_mm": [
+        0,
+        5.65
+      ],
+      "bore_diameter_mm": 1.4999998807907104,
+      "conduit_tip_z_mm": -2.4000000953674316
+    },
+    "pinhole_diameters_mm": [
+      1.5999999046325684,
+      1.6000001430511475
+    ],
+    "LED_skin_thicknesses_mm": [
+      0.3600000739097595,
+      0.36000001430511475
+    ],
+    "lanyard_hole_diameter_mm": 2.5999999046325684,
+    "USB_ceiling_z_mm": -1.4000000953674316,
+    "tongue_tip_z_mm": -5.159999847412109
+  },
   "native_3mf": {
     "path": "diting-case-v1-K3.3mf",
     "sha256": "8c32a4324b7b4c50632ef5eeeee2f2aebba3bbc1544705d06f198a86b0ee8536",
@@ -372,15 +435,15 @@
   },
   "previews": {
     "images_generated": [
-      "assembly-back.png",
       "assembly-front.png",
-      "back-slot.png",
-      "clip-side.png",
-      "exploded-back.png",
+      "assembly-back.png",
       "exploded.png",
-      "front-inside.png",
+      "exploded-back.png",
+      "print-layout.png",
       "front-orthographic.png",
-      "print-layout.png"
+      "front-inside.png",
+      "back-slot.png",
+      "clip-side.png"
     ],
     "human_visual_review": "pending; recorded separately after opening generated PNGs"
   }

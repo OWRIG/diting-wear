@@ -1,0 +1,17 @@
+{
+  "parts/case-back.stl": "f025757705f69dfc2f0cf68a76e2ae2838b7211c0814949a995ed338140ce190",
+  "parts/case-front.stl": "b5f030e233590f018cc0d7250841883fea690e7eb682442003a80843cb8cde15",
+  "parts/clip.stl": "3eaaa5f3ed27190ceae3e635d60f3f7cd3499ca544fd5f51ca25864131adc4a9",
+  "previews/assembly-back.png": "6658fe2ee5504d05712e9e4ec65c550a9339a2c9b4e1365492e65cdadd0a5ce5",
+  "previews/assembly-front.png": "3b55d00f3f3618f7c68be4f2a45e62770a187a32157756a0d9b596af3c5728de",
+  "previews/back-slot.png": "42f63b8ed7156b42c33ef7e7b4bdf17c9cee1d6a6759e4241586b3a82d0f82f9",
+  "previews/clip-side.png": "5da515a767cf0cc166cf8d311196e4dcad5c18e7cae013051d874d7ad0151886",
+  "previews/exploded-back.png": "a963fbc643fc61cb8afa6da1829165408b7fe95a93d3beb8f1ed1a4e4183266f",
+  "previews/exploded.png": "141d034398fca6a314cdd872d4c6fc4be0f34e39c1a8a36bde5e54b69cd53d25",
+  "previews/front-inside.png": "a2d38d34406ce059f4db15499d417a9dab5cc6cd78e1b5d622ac048bf924df6a",
+  "previews/front-orthographic.png": "e9f8d360eef9a54577f54f5619bf6045b31f4482e59af95d63bf9346e6065793",
+  "previews/print-layout.png": "20968e77a89d7b08243b27052ff2b5d28c3b8cedc891f8f168fc780f9b2bafbe",
+  "geometry-report.json": "029ca4d8623f30be7af05aa290e0180f3ff54d0f2e1c267c6d5ebf8ef68be4e1",
+  "diting-case-v1-K3.3mf": "8c32a4324b7b4c50632ef5eeeee2f2aebba3bbc1544705d06f198a86b0ee8536",
+  "diting-case-v1.blend": "d62c57d987737eb1f969de3f010f74b7332638e67b04c5ab8c305f94e03e096f"
+}

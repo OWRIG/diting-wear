@@ -5,7 +5,7 @@
   "project_sha256": "8c32a4324b7b4c50632ef5eeeee2f2aebba3bbc1544705d06f198a86b0ee8536",
   "gcode": "diting-case-v1-K3.gcode",
   "gcode_sha256": "fd48bdf66885aa2e589a64dfab4840e2c3d96a8cd70ec08714de8051667543b6",
-  "geometry_report_sha256": "029ca4d8623f30be7af05aa290e0180f3ff54d0f2e1c267c6d5ebf8ef68be4e1",
+  "geometry_report_sha256": "965d68556cb7349fb57dc6d33c197fa90ff5211af8c26300a69e7a0c0e86a84a",
   "invocation": {
     "command": [
       "/Applications/Creality Print.app/Contents/MacOS/CrealityPrint",
@@ -107,7 +107,7 @@
       "Bridge": 113
     },
     "features_path_length_mm": {
-      "Inner wall": 9641.420861637784,
+      "Inner wall": 9641.420861637782,
       "Outer wall": 24485.085650961722,
       "Gap infill": 10046.47080715879,
       "Bottom surface": 1072.0029038301843,
@@ -181,7 +181,52 @@
     "startup_note": "Inherited K3 startup includes a purge line at Y=0. It is not model support or brim.",
     "method": "global + object + dirty-key + G-code settings; all positive model extrusion decoded including I/J arcs; typed feature and spatial checks"
   },
-  "preview_review": "pending; see visual-review.json after inspection",
+  "preview_review": {
+    "status": "reviewed_by_agent_using_view_image",
+    "date": "2026-11-06",
+    "design_sha256": "6ae6d8ba3a0b16309a6812b939b156d3b33aec15d8e7e09246fa93520ea74b92",
+    "image_sha256": {
+      "assembly-back.png": "6658fe2ee5504d05712e9e4ec65c550a9339a2c9b4e1365492e65cdadd0a5ce5",
+      "assembly-front.png": "3b55d00f3f3618f7c68be4f2a45e62770a187a32157756a0d9b596af3c5728de",
+      "back-slot.png": "42f63b8ed7156b42c33ef7e7b4bdf17c9cee1d6a6759e4241586b3a82d0f82f9",
+      "clip-side.png": "5da515a767cf0cc166cf8d311196e4dcad5c18e7cae013051d874d7ad0151886",
+      "exploded-back.png": "a963fbc643fc61cb8afa6da1829165408b7fe95a93d3beb8f1ed1a4e4183266f",
+      "exploded.png": "141d034398fca6a314cdd872d4c6fc4be0f34e39c1a8a36bde5e54b69cd53d25",
+      "front-inside.png": "a2d38d34406ce059f4db15499d417a9dab5cc6cd78e1b5d622ac048bf924df6a",
+      "front-orthographic.png": "e9f8d360eef9a54577f54f5619bf6045b31f4482e59af95d63bf9346e6065793",
+      "print-layout.png": "20968e77a89d7b08243b27052ff2b5d28c3b8cedc891f8f168fc780f9b2bafbe"
+    },
+    "observations": [
+      "正视和前壳内侧图确认：麦克风孔在(0,5.65)，两顶针孔位于(-4.7,5.65)与(4.5,5.65)，导声管向腔内伸出；三孔均通。",
+      "两灯窗位于USB端附近的(±6.3,20.85)，是从内侧挖出的盲孔，正面保持封闭薄皮；没有误做成通孔。",
+      "USB U形槽朝+y并一直开到后口，后盖舌片填补下段，装配后在USB高度保留开口。",
+      "挂绳耳从-y端伸出并与正面齐平，中央通孔朝z；撬口位于同端后口，未与挂绳孔混淆。",
+      "后盖单边燕尾槽朝+y的USB端开放，-y端保留挡块；+x侧直、-x侧斜，背夹燕尾与此匹配。",
+      "背夹处于后盖外侧，U弯在-y端，夹紧凸棱和外翘导入边在+y端。",
+      "打印排布从左到右为前壳、后盖、背夹：前壳正面朝下，后盖外表面朝下，背夹+x侧朝下。几何间距至少6.35mm。"
+    ],
+    "toolpath_review": {
+      "path": "sliced/toolpaths.png",
+      "image_sha256": "846a263daa059efa9bccc62c8a17cd8e60782b7da09f48cac45b16d570a9109f",
+      "gcode_sha256": "fd48bdf66885aa2e589a64dfab4840e2c3d96a8cd70ec08714de8051667543b6",
+      "observed_layers_z_mm": [
+        0.16,
+        0.48,
+        1.12,
+        3.2,
+        12,
+        15.2
+      ],
+      "observations": [
+        "首层三个对象分别在预期范围落床，麦克风、顶针与挂绳孔均保留，未见brim或支撑轮廓。后盖舌片底部两小脚也贴床。",
+        "Z=0.48的前壳灯窗已出现盲孔轮廓，首层仍有封闭底皮。",
+        "后盖燕尾槽在Z=1.12出现横向桥接刀路；背夹燕尾在Z=3.20开始有连续刀路，没有此前双边燕尾的独立起始岛。",
+        "Z=12.00和15.20的末层保留背夹/前壳侧壁及U形开口，未出现额外支撑或擦料塔。"
+      ],
+      "limitations": "仅检查刀路与几何；未验证0.9mm侧向小台阶、桥接下垂、首层附着和PLA弹性等实物表现。"
+    },
+    "physical_result_verified": false
+  },
   "machine_actions_performed_by_agent": false,
   "physical_result_verified": false,
   "verification_command": "python3 enclosure/v1/verify_slicing.py",

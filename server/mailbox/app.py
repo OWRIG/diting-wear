@@ -22,6 +22,8 @@ MAX_AUDIO_BYTES = 20 * 1024 * 1024
 AUDIO_TTL_DAYS = float(os.environ.get("AUDIO_TTL_DAYS", "7"))
 TEXT_TTL_DAYS = float(os.environ.get("TEXT_TTL_DAYS", "30"))
 NAME_RE = re.compile(r"^\d{8}-\d{6}\.opus$")
+SPK_RE = re.compile(r"^spk_\d{3,6}$")
+SPEAKERS = DATA / "speakers.json"   # 只有编号、名字、合并关系、首次出现信息；声纹只存在家里 Mac 上
 
 for d in (INBOX, OUTBOX):
     d.mkdir(parents=True, exist_ok=True)
@@ -39,6 +41,16 @@ def _auth(expected: str):
 
 phone = Depends(_auth(PHONE_TOKEN))
 worker = Depends(_auth(WORKER_TOKEN))
+
+
+def _either(authorization: str = Header(default="")):
+    token = authorization.removeprefix("Bearer ").strip().encode()
+    if not (secrets.compare_digest(token, PHONE_TOKEN.encode())
+            or secrets.compare_digest(token, WORKER_TOKEN.encode())):
+        raise HTTPException(401, "bad token")
+
+
+anyone = Depends(_either)
 
 
 def _name(name: str) -> str:
@@ -115,3 +127,65 @@ async def put_text(name: str, request: Request):
     tmp.replace(OUTBOX / f"{name}.json")
     (INBOX / name).unlink(missing_ok=True)
     return {"ok": True}
+
+
+# ---------- 说话人名单（手机和 Mac 都能读） ----------
+
+def _load_speakers() -> dict:
+    return json.loads(SPEAKERS.read_text()) if SPEAKERS.exists() else {}
+
+
+def _save_speakers(d: dict):
+    tmp = DATA / ".speakers.json.tmp"
+    tmp.write_text(json.dumps(d, ensure_ascii=False, indent=1))
+    tmp.replace(SPEAKERS)
+
+
+@app.get("/v1/speakers", dependencies=[anyone])
+def list_speakers():
+    return {"items": _load_speakers()}
+
+
+@app.put("/v1/speakers/{sid}", dependencies=[worker])
+async def worker_upsert_speaker(sid: str, request: Request):
+    """Mac 登记新说话人或更新首次出现信息。不会覆盖用户起的名字和合并关系。"""
+    if not SPK_RE.match(sid):
+        raise HTTPException(400, "bad id")
+    body = await request.json()
+    d = _load_speakers()
+    cur = d.get(sid, {})
+    for k in ("first_seen", "sample", "sample_name", "sample_start"):
+        if k in body and k not in cur:
+            cur[k] = body[k]
+    cur.setdefault("name", None)
+    cur.setdefault("merged_into", None)
+    d[sid] = cur
+    _save_speakers(d)
+    return {"ok": True, "speaker": cur}
+
+
+@app.patch("/v1/speakers/{sid}", dependencies=[phone])
+async def phone_edit_speaker(sid: str, request: Request):
+    """手机起名字 {"name": "老王"} 或合并 {"merged_into": "spk_001"}（null 表示取消合并）。"""
+    d = _load_speakers()
+    if sid not in d:
+        raise HTTPException(404)
+    body = await request.json()
+    if "name" in body:
+        name = (body["name"] or "").strip()[:40]
+        d[sid]["name"] = name or None
+    if "merged_into" in body:
+        tgt = body["merged_into"]
+        if tgt is not None:
+            if tgt not in d or tgt == sid:
+                raise HTTPException(400, "bad merge target")
+            # 防止合并成环：沿着目标的合并链走，不能回到自己
+            seen, cur = {sid}, tgt
+            while cur:
+                if cur in seen:
+                    raise HTTPException(400, "merge cycle")
+                seen.add(cur)
+                cur = d.get(cur, {}).get("merged_into")
+        d[sid]["merged_into"] = tgt
+    _save_speakers(d)
+    return {"ok": True, "speaker": d[sid]}

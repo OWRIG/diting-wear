@@ -66,6 +66,7 @@ class RecorderService : Service() {
         io.scheduleWithFixedDelay({
             val (ok, left) = uploader.uploadPending()
             val got = Transcripts.pull(this)
+            Speakers.pull(this)
             AppState.update { it.copy(pendingUploads = left, uploadedThisSession = it.uploadedThisSession + ok,
                 textVersion = it.textVersion + got) }
         }, 5, 60, TimeUnit.SECONDS)

@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -34,6 +35,7 @@ import java.util.Locale
 class MainActivity : ComponentActivity() {
 
     private val player = Player()
+    private var speakerVersion by mutableIntStateOf(0)   // 名单变了就让界面刷新
     private val uploader by lazy { Uploader(this) }
 
     private val permLauncher =
@@ -90,7 +92,10 @@ class MainActivity : ComponentActivity() {
         // App 在前台时每 30 秒取一次文字（录音服务在跑时它也会每分钟取）
         LaunchedEffect(Unit) {
             while (true) {
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Transcripts.pull(this@MainActivity) }
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    Transcripts.pull(this@MainActivity); Speakers.pull(this@MainActivity)
+                }
+                speakerVersion++
                 delay(30_000)
             }
         }
@@ -130,8 +135,13 @@ class MainActivity : ComponentActivity() {
                 TabRow(selectedTabIndex = tab, Modifier.padding(top = 8.dp)) {
                     Tab(tab == 0, onClick = { tab = 0 }, text = { Text("文字") })
                     Tab(tab == 1, onClick = { tab = 1 }, text = { Text("录音") })
+                    Tab(tab == 2, onClick = { tab = 2 }, text = { Text("人物") })
                 }
-                if (tab == 0) TextTimeline(recs) else RecordingList(recs)
+                when (tab) {
+                    0 -> TextTimeline(recs)
+                    1 -> RecordingList(recs)
+                    else -> PeoplePage(recs)
+                }
             }
         }
     }
@@ -180,8 +190,11 @@ class MainActivity : ComponentActivity() {
                         Text(l.at.format(T), Modifier.width(68.dp),
                             color = MaterialTheme.colorScheme.outline, fontSize = 12.sp)
                         Column(Modifier.weight(1f)) {
-                            l.seg.speaker?.let {
-                                Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.tertiary)
+                            val who = Speakers.displayName(this@MainActivity, l.seg.speaker)
+                            val prevWho = prev?.let { Speakers.displayName(this@MainActivity, it.seg.speaker) }
+                            if (who != null && who != prevWho) {
+                                Text(who, fontSize = 12.sp, color = MaterialTheme.colorScheme.tertiary,
+                                    fontWeight = FontWeight.Medium)
                             }
                             Text(l.seg.text, style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
@@ -356,6 +369,91 @@ class MainActivity : ComponentActivity() {
                         color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                 }
             }
+        }
+    }
+
+    /** 人物页：所有认出来的人，可以起名字、合并 */
+    @Composable
+    private fun PeoplePage(recs: List<Recording>) {
+        @Suppress("UNUSED_EXPRESSION") speakerVersion
+        val all = Speakers.all(this)
+        val scope = rememberCoroutineScope()
+        // 统计每个人（合并后）一共说了多少句
+        val counts = HashMap<String, Int>()
+        recs.forEach { r -> Transcripts.get(this, r.name)?.segments?.forEach { seg ->
+            Speakers.resolve(this, seg.speaker)?.let { counts[it.id] = (counts[it.id] ?: 0) + 1 } } }
+        val people = all.values.filter { it.mergedInto == null }.sortedByDescending { counts[it.id] ?: 0 }
+        var editing by remember { mutableStateOf<Speaker?>(null) }
+        var merging by remember { mutableStateOf<Speaker?>(null) }
+
+        LazyColumn(Modifier.fillMaxWidth()) {
+            if (people.isEmpty()) item {
+                Text("还没有认出任何人。家里的 Mac 开启「区分说话人」后，转写结果里出现的人会列在这里，你可以给他们起名字。",
+                    Modifier.padding(vertical = 24.dp), color = MaterialTheme.colorScheme.outline)
+            }
+            items(people, key = { it.id }) { p ->
+                val aliases = all.values.filter { it.mergedInto != null && Speakers.resolve(this@MainActivity, it.id)?.id == p.id }
+                Column(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(p.name ?: p.defaultName, Modifier.weight(1f),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (p.name == null) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface)
+                        Text("${counts[p.id] ?: 0} 句", color = MaterialTheme.colorScheme.outline, fontSize = 13.sp)
+                    }
+                    p.firstSeen?.let { Text("第一次出现：${it.replace('T', ' ').take(19)}", fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.outline) }
+                    p.sample?.let { Text("说过：「$it」", style = MaterialTheme.typography.bodyMedium) }
+                    if (aliases.isNotEmpty()) {
+                        Text("已合并：" + aliases.joinToString("、") { it.name ?: it.defaultName },
+                            fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { editing = p }) { Text("改名字") }
+                        if (people.size > 1) TextButton(onClick = { merging = p }) { Text("和别人是同一个人") }
+                        aliases.forEach { a ->
+                            TextButton(onClick = { scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                Speakers.edit(this@MainActivity, a.id, unmerge = true); speakerVersion++ } }) {
+                                Text("拆开 ${a.name ?: a.defaultName}")
+                            }
+                        }
+                    }
+                }
+                HorizontalDivider()
+            }
+        }
+
+        editing?.let { p ->
+            var text by remember(p.id) { mutableStateOf(p.name ?: "") }
+            AlertDialog(
+                onDismissRequest = { editing = null },
+                title = { Text("给 ${p.name ?: p.defaultName} 起名字") },
+                text = { OutlinedTextField(text, { text = it }, singleLine = true, placeholder = { Text("比如：我、老王、妈妈") }) },
+                confirmButton = { TextButton(onClick = {
+                    scope.launch(kotlinx.coroutines.Dispatchers.IO) { Speakers.edit(this@MainActivity, p.id, name = text); speakerVersion++ }
+                    editing = null }) { Text("保存") } },
+                dismissButton = { TextButton(onClick = { editing = null }) { Text("取消") } },
+            )
+        }
+        merging?.let { p ->
+            AlertDialog(
+                onDismissRequest = { merging = null },
+                title = { Text("${p.name ?: p.defaultName} 其实是谁？") },
+                text = {
+                    Column {
+                        Text("选中的人会和 ${p.name ?: p.defaultName} 合并成一个，以后两种声音都认成他。合并后还能拆开。",
+                            fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+                        people.filter { it.id != p.id }.forEach { t ->
+                            TextButton(onClick = {
+                                scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                    Speakers.edit(this@MainActivity, p.id, mergeInto = t.id); speakerVersion++ }
+                                merging = null
+                            }) { Text(t.name ?: t.defaultName) }
+                        }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = { TextButton(onClick = { merging = null }) { Text("取消") } },
+            )
         }
     }
 

@@ -23,9 +23,13 @@ import sqlite3
 import sys
 import tempfile
 import time
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import httpx
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import speakers  # noqa: E402
 
 CONF = Path(os.environ.get("DITING_CONF", "~/.config/diting/worker.env")).expanduser()
 HOME = Path(os.environ.get("DITING_HOME", "~/diting")).expanduser()
@@ -41,6 +45,8 @@ def load_conf() -> dict:
         if "=" in line and not line.lstrip().startswith("#"):
             k, v = line.split("=", 1)
             conf[k.strip()] = v.strip()
+    if conf.get("SPEAKER_THRESHOLD"):
+        speakers.THRESHOLD = float(conf["SPEAKER_THRESHOLD"])
     for k in ("SERVER_URL", "WORKER_TOKEN", "ASR_URL"):
         if not conf.get(k):
             sys.exit(f"配置缺少 {k}：{CONF}")
@@ -57,6 +63,7 @@ def open_db() -> sqlite3.Connection:
         engine text, model text,
         text text, segments text,       -- segments 是 JSON
         created_at text default (datetime('now','localtime')))""")
+    speakers.init(db)
     return db
 
 
@@ -85,6 +92,24 @@ def process_one(c: dict, mailbox: httpx.Client, asr: httpx.Client, db: sqlite3.C
                  time.time() - t0, len(result.get("text", "")))
         # 临时目录退出时音频文件随之删除
 
+    # 认人：文件内编号 → 全局编号；声纹不会出现在 payload 里
+    segments = result.get("segments", [])
+    mapping, new_ids = speakers.assign(db, result)
+    for seg in segments:
+        seg["speaker"] = mapping.get(seg.get("speaker"))
+    for sid in new_ids:
+        mine = [s for s in segments if s.get("speaker") == sid and s.get("text")]
+        first = min(mine, key=lambda s: s["start"]) if mine else None
+        sample = max(mine, key=lambda s: len(s["text"])) if mine else None
+        mailbox.put(f"/v1/speakers/{sid}", json={
+            "first_seen": started_at(name) if not first else
+                (datetime.fromisoformat(started_at(name)) + timedelta(seconds=first["start"])).isoformat(),
+            "sample": (sample or {}).get("text", "")[:80],
+            "sample_name": name,
+            "sample_start": (sample or {}).get("start"),
+        }).raise_for_status()
+        log.info("新说话人 %s", sid)
+
     payload = {
         "started_at": started_at(name),
         "duration_s": result.get("duration_s"),
@@ -92,8 +117,10 @@ def process_one(c: dict, mailbox: httpx.Client, asr: httpx.Client, db: sqlite3.C
         "engine": result.get("engine"),
         "model": result.get("model"),
         "text": result.get("text", ""),
-        "segments": result.get("segments", []),
+        "segments": [{k: seg.get(k) for k in ("start", "end", "text", "speaker")} for seg in segments],
     }
+    if result.get("speaker_error"):
+        log.warning("%s 说话人分离出错：%s", name, result["speaker_error"])
     db.execute("insert or replace into transcripts(name, started_at, duration_s, speech_s, engine, model, text, segments)"
                " values (?,?,?,?,?,?,?,?)",
                (name, payload["started_at"], payload["duration_s"], payload["speech_s"],
@@ -108,6 +135,8 @@ def run_once(c: dict, db: sqlite3.Connection) -> int:
     headers = {"Authorization": f"Bearer {c['WORKER_TOKEN']}"}
     with httpx.Client(base_url=c["SERVER_URL"], headers=headers, timeout=60) as mailbox, \
          httpx.Client(base_url=c["ASR_URL"], timeout=600, trust_env=False) as asr:
+        # 先同步手机上做的合并
+        speakers.apply_server_merges(db, mailbox.get("/v1/speakers").raise_for_status().json()["items"])
         items = mailbox.get("/v1/audio").raise_for_status().json()["items"]
         done = 0
         for it in items:

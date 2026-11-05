@@ -36,3 +36,7 @@
 ## 第三方代码
 
 - `firmware/lib/opus`：[libopus](https://opus-codec.org/) v1.5.2，BSD 许可证，见 `firmware/lib/opus/COPYING`
+
+## 许可证
+
+[MIT](LICENSE)。第三方代码保留各自的许可证。从 Zephyr 示例改写的测试程序（blinky、ble-test）沿用 Apache-2.0。

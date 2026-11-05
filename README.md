@@ -19,6 +19,7 @@
 | 目录 | 内容 |
 |---|---|
 | `firmware/` | 设备固件（Zephyr / nRF Connect SDK），见 [firmware/README.md](firmware/README.md) |
+| `android/` | 安卓 App（Kotlin + Compose）：蓝牙接收音频，每 5 分钟存一个 Ogg Opus 文件 |
 | `tools/` | 电脑端工具，比如 BLE 接收测试脚本 |
 | `docs/` | 部署和开发文档 |
 | `shopping-list.md` | 硬件购物清单 |

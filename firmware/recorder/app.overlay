@@ -1,0 +1,6 @@
+/* 电池电压：ADC 通道 7 (P1.14)，经过 1/2 分压；vbat_pwr 负载开关控制分压电路的通断 */
+/ {
+	zephyr,user {
+		io-channels = <&adc 7>;
+	};
+};

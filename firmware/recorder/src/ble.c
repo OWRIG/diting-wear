@@ -7,15 +7,32 @@
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <string.h>
+#include <zephyr/sys/byteorder.h>
 #include "app.h"
 
 /* 服务 UUID: 5a1d0001-7e3c-4b8a-9f00-524947000000 */
 #define RIG_UUID(n) BT_UUID_128_ENCODE(0x5a1d0000 | (n), 0x7e3c, 0x4b8a, 0x9f00, 0x524947000000)
 static const struct bt_uuid_128 svc_uuid   = BT_UUID_INIT_128(RIG_UUID(1));
 static const struct bt_uuid_128 audio_uuid = BT_UUID_INIT_128(RIG_UUID(2));
+/* 电池特征 5a1d0003-…：uint16 小端，单位 mV，可读 + 通知 */
+static const struct bt_uuid_128 batt_uuid  = BT_UUID_INIT_128(RIG_UUID(3));
 
 static struct bt_conn *cur_conn;
 static volatile bool subscribed;
+
+static volatile bool batt_subscribed;
+
+static void batt_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value)
+{
+	batt_subscribed = (value == BT_GATT_CCC_NOTIFY);
+}
+
+static ssize_t batt_read(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+			 void *buf, uint16_t len, uint16_t offset)
+{
+	uint16_t mv = sys_cpu_to_le16(battery_mv());
+	return bt_gatt_attr_read(conn, attr, buf, len, offset, &mv, sizeof(mv));
+}
 
 static void ccc_changed(const struct bt_gatt_attr *attr, uint16_t value)
 {
@@ -28,6 +45,9 @@ BT_GATT_SERVICE_DEFINE(rig_svc,
 	BT_GATT_CHARACTERISTIC(&audio_uuid.uuid, BT_GATT_CHRC_NOTIFY,
 			       BT_GATT_PERM_NONE, NULL, NULL, NULL),
 	BT_GATT_CCC(ccc_changed, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
+	BT_GATT_CHARACTERISTIC(&batt_uuid.uuid, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
+			       BT_GATT_PERM_READ, batt_read, NULL, NULL),
+	BT_GATT_CCC(batt_ccc_changed, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
 );
 
 static const struct bt_data ad[] = {
@@ -133,4 +153,13 @@ int ble_send_audio(const uint8_t *data, size_t len)
 	memcpy(&pkt[2], data, len);
 	seq++;
 	return bt_gatt_notify(cur_conn, &rig_svc.attrs[1], pkt, len + 2);
+}
+
+int ble_send_battery(uint16_t mv)
+{
+	if (!cur_conn || !batt_subscribed) {
+		return -ENOTCONN;
+	}
+	uint16_t v = sys_cpu_to_le16(mv);
+	return bt_gatt_notify(cur_conn, &rig_svc.attrs[4], &v, sizeof(v));
 }

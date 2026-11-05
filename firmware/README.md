@@ -23,9 +23,15 @@
 ## 录音固件 BLE 协议
 - 服务 `5a1d0001-7e3c-4b8a-9f00-524947000000`
 - 音频特征 `5a1d0002-…`（notify）：每个包 = `[seq 低][seq 高][一帧 Opus 20ms]`
+- 电池特征 `5a1d0003-…`（read + notify）：uint16 小端，单位 mV，每 30 秒更新一次
 - 手机/电脑订阅后板子才开麦；需要 MTU ≥ ~125（macOS 会协商到 247）
 - Mac 测试接收：`uv run --script tools/ble_receiver.py 20 out.wav`（终端 App 要有蓝牙权限）
 
 ## libopus
 - `lib/opus` 是 v1.5.2 源码，`lib/opus.cmake` 定义了编译清单和宏（FIXED_POINT、OPUS_ARM_INLINE_EDSP）
 - 打开 EDSP 后编码耗时从 11ms 降到 4.7ms，复杂度 3 降到 1 后音质听不出区别
+
+## 电池
+- 402020 电池焊在背面的 BAT 焊盘上：USB 口朝上时，**左边是负极（黑线）**，**右边是正极（红线）**。右下角的 N1/N2 是 NFC 焊盘，不要焊错
+- 电压：ADC 通道 7 (P1.14) 经过 1/2 分压，`vbat_pwr`（P1.15）只在测量时接通
+- 接上电池后，插 USB 充电时红灯会闪；不接电池时红灯常亮
